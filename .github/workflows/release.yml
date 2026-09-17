@@ -1,0 +1,80 @@
+name: Release
+on:
+  push:
+    branches: [release/production]
+    paths-ignore: ['docs/**', '**/*.md']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: talos-release
+  cancel-in-progress: false
+jobs:
+  verify:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+  release:
+    needs: verify
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check required secrets
+        env:
+          DEVELOPER_ID_CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          missing=0
+          for name in DEVELOPER_ID_CERT_P12 DEVELOPER_ID_CERT_PASSWORD ASC_API_KEY_P8 ASC_API_KEY_ID ASC_API_ISSUER_ID SPARKLE_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+      - name: Install packaging tool
+        run: brew install create-dmg
+      - name: Import Developer ID certificate and notarization key
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          umask 077
+          signing_keychain="$RUNNER_TEMP/talos-signing.keychain-db"
+          signing_password="$(openssl rand -base64 32)"
+          echo "::add-mask::$signing_password"
+          printf '%s' "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/talos-cert.p12"
+          printf '%s' "$ASC_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/talos-asc.p8"
+          security create-keychain -p "$signing_password" "$signing_keychain"
+          security set-keychain-settings -lut 21600 "$signing_keychain"
+          security unlock-keychain -p "$signing_password" "$signing_keychain"
+          security import "$RUNNER_TEMP/talos-cert.p12" -P "$CERT_PASSWORD" -t cert -f pkcs12 -k "$signing_keychain" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k "$signing_password" "$signing_keychain" >/dev/null
+          security list-keychains -d user -s "$signing_keychain" "$HOME/Library/Keychains/login.keychain-db"
+          rm "$RUNNER_TEMP/talos-cert.p12"
+      - name: Build, notarize and publish ZIP and DMG
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_PATH: ${{ runner.temp }}/talos-asc.p8
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          REPO: ${{ github.repository }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          scripts/release.sh
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/talos-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/talos-cert.p12" "$RUNNER_TEMP/talos-asc.p8"
