@@ -7,15 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-        A10000000000000000000001 /* TalosSDK in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000002; };
-B2000000000000000000000A = {isa = PBXBuildFile; productRef = A10000000000000000000002; };
 B2000000000000000000000B = {isa = PBXBuildFile; fileRef = B20000000000000000000002; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, CodeSignOnCopy, ); }; };
 C30000000000000000000001 = {isa = PBXBuildFile; productRef = C30000000000000000000002; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		84763E12305BE82A00C50265 /* Talos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Talos.app; sourceTree = BUILT_PRODUCTS_DIR; };
-B20000000000000000000002 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = "Talos Settings.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+B20000000000000000000002 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = "Talos.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 D40000000000000000000001 /* TalosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TalosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -34,11 +32,10 @@ D40000000000000000000002 = {isa = PBXFileSystemSynchronizedRootGroup; path = Tal
 		84763E0F305BE82A00C50265 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
-                A10000000000000000000001 /* TalosSDK in Frameworks */,
 C30000000000000000000001,
 			);
 		};
-B20000000000000000000005 = {isa = PBXFrameworksBuildPhase; files = (B2000000000000000000000A,); };
+B20000000000000000000005 = {isa = PBXFrameworksBuildPhase; files = (); };
 D40000000000000000000003 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
@@ -88,6 +85,8 @@ D40000000000000000000001 /* TalosUITests.xctest */,
 				84763E0F305BE82A00C50265 /* Frameworks */,
 				84763E10305BE82A00C50265 /* Resources */,
 B2000000000000000000000C,
+E50000000000000000000001,
+E50000000000000000000002,
 			);
 			buildRules = (
 			);
@@ -95,13 +94,13 @@ B2000000000000000000000C,
 			fileSystemSynchronizedGroups = (
 				84763E14305BE82A00C50265 /* Talos */,
 			);
-            packageProductDependencies = (A10000000000000000000002, C30000000000000000000002);
+            packageProductDependencies = (C30000000000000000000002);
 			name = Talos;
 			productName = Talos;
 			productReference = 84763E12305BE82A00C50265 /* Talos.app */;
 			productType = "com.apple.product-type.application";
 		};
-B20000000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = B20000000000000000000007; buildPhases = (B20000000000000000000004, B20000000000000000000005, B20000000000000000000006, ); buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (84763E14305BE82A00C50265, B20000000000000000000003, ); packageProductDependencies = (A10000000000000000000002, ); name = TalosSettings; productName = "Talos Settings"; productReference = B20000000000000000000002; productType = "com.apple.product-type.application"; };
+B20000000000000000000001 = {isa = PBXNativeTarget; buildConfigurationList = B20000000000000000000007; buildPhases = (B20000000000000000000004, B20000000000000000000005, B20000000000000000000006, ); buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (84763E14305BE82A00C50265, B20000000000000000000003, ); packageProductDependencies = (); name = TalosSettings; productName = "Talos"; productReference = B20000000000000000000002; productType = "com.apple.product-type.application"; };
 D40000000000000000000006 /* TalosUITests */ = {isa = PBXNativeTarget; buildConfigurationList = D40000000000000000000007; buildPhases = (D40000000000000000000004, D40000000000000000000003, D40000000000000000000005, ); buildRules = (); dependencies = (D4000000000000000000000B, ); fileSystemSynchronizedGroups = (D40000000000000000000002, ); name = TalosUITests; productName = TalosUITests; productReference = D40000000000000000000001; productType = "com.apple.product-type.bundle.ui-testing"; };
 /* End PBXNativeTarget section */
 
@@ -124,10 +123,11 @@ D40000000000000000000006 /* TalosUITests */ = {isa = PBXNativeTarget; buildConfi
 			knownRegions = (
 				en,
 				Base,
+                nl, es, fr,
 			);
 			mainGroup = 84763E09305BE82A00C50265;
 			minimizedProjectReferenceProxies = 1;
-            packageReferences = (A10000000000000000000003, C30000000000000000000003);
+            packageReferences = (C30000000000000000000003);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 84763E13305BE82A00C50265 /* Products */;
 			projectDirPath = "";
@@ -150,6 +150,11 @@ B20000000000000000000006 = {isa = PBXResourcesBuildPhase; files = (); };
 D40000000000000000000005 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+E50000000000000000000002 = {isa = PBXShellScriptBuildPhase; buildActionMask = 2147483647; files = (); inputPaths = (); alwaysOutOfDate = 1; outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/built-in-actions.talos", "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/built-in-actions.json", ); name = "Build and Embed Talos Actions"; runOnlyForDeploymentPostprocessing = 0; shellPath = /bin/bash; shellScript = "bash \"$SRCROOT/scripts/build-actions.sh\""; };
+E50000000000000000000001 = {isa = PBXShellScriptBuildPhase; buildActionMask = 2147483647; files = (); inputPaths = (); alwaysOutOfDate = 1; outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/node", "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Node-LICENSE.txt", ); name = "Embed JavaScript Runtime"; runOnlyForDeploymentPostprocessing = 0; shellPath = /bin/bash; shellScript = "bash \"$SRCROOT/scripts/embed-node.sh\""; };
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		84763E0E305BE82A00C50265 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -164,10 +169,8 @@ D40000000000000000000004 = {isa = PBXSourcesBuildPhase; buildActionMask = 214748
 C30000000000000000000003 = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/sparkle-project/Sparkle"; requirement = {kind = upToNextMajorVersion; minimumVersion = 2.8.0; }; };
 /* End XCRemoteSwiftPackageReference section */
 /* Begin XCLocalSwiftPackageReference section */
-        A10000000000000000000003 = {isa = XCLocalSwiftPackageReference; relativePath = Packages/TalosSDK; };
 /* End XCLocalSwiftPackageReference section */
 /* Begin XCSwiftPackageProductDependency section */
-        A10000000000000000000002 = {isa = XCSwiftPackageProductDependency; productName = TalosSDK; };
 C30000000000000000000002 = {isa = XCSwiftPackageProductDependency; package = C30000000000000000000003; productName = Sparkle; };
 /* End XCSwiftPackageProductDependency section */
 
@@ -210,7 +213,7 @@ C30000000000000000000002 = {isa = XCSwiftPackageProductDependency; package = C30
 				DEVELOPMENT_TEAM = U6WA8YA735;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -274,7 +277,7 @@ C30000000000000000000002 = {isa = XCSwiftPackageProductDependency; package = C30
 				DEVELOPMENT_TEAM = U6WA8YA735;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -394,7 +397,8 @@ B20000000000000000000008 /* Debug configuration for PBXNativeTarget "Talos" */ =
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thom1606.Talos.Settings;
-				PRODUCT_NAME = "Talos Settings";
+				PRODUCT_NAME = Talos;
+                CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/TalosSettings";
  SKIP_INSTALL = YES;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -434,7 +438,8 @@ B20000000000000000000009 /* Release configuration for PBXNativeTarget "Talos" */
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thom1606.Talos.Settings;
-				PRODUCT_NAME = "Talos Settings";
+				PRODUCT_NAME = Talos;
+                CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/TalosSettings";
  SKIP_INSTALL = YES;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

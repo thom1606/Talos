@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import TalosSDK
 
 @MainActor
 final class DragWheelController {
@@ -10,6 +9,8 @@ final class DragWheelController {
     private var dragFiles: [ModuleFile] = []
     private var inspection: Task<Void, Never>?
     private var typesReady = false
+    private var preparedActions: [TalosAction] = []
+    private let previewProvider: () -> [TalosAction]
     private var panel: NSPanel?
     private var timer: Timer?
     private var pasteboardCount = NSPasteboard(name: .drag).changeCount
@@ -17,12 +18,16 @@ final class DragWheelController {
     private var suppressed = false
     private var closeTask: Task<Void, Never>?
 
-    init(actionsProvider: @escaping ([ModuleFile]) -> [TalosAction]) {
+    init(actionsProvider: @escaping ([ModuleFile]) -> [TalosAction], previewProvider: @escaping () -> [TalosAction] = { [] }) {
         self.actionsProvider = actionsProvider
+        self.previewProvider = previewProvider
     }
 
     func start() {
         guard timer == nil else { return }
+        state.reset(actions: Array(previewProvider().prefix(8)), files: [])
+        preparePanel()
+        panel?.contentView?.layoutSubtreeIfNeeded()
         // Poll public mouse/modifier state, without a global keyboard event tap or Accessibility access.
         let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
@@ -48,6 +53,8 @@ final class DragWheelController {
                 dragIsActive = pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
                 suppressed = false
                 typesReady = false
+                if state.isVisible { dismiss() }
+                preparedActions = []
                 dragFiles = []
                 inspection?.cancel()
                 let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
@@ -56,6 +63,9 @@ final class DragWheelController {
                     let files = await inspector.inspect(urls)
                     guard !Task.isCancelled else { return }
                     dragFiles = files
+                    preparedActions = actionsProvider(files)
+                    state.reset(actions: preparedActions, files: files.map(\.url))
+                    panel?.contentView?.layoutSubtreeIfNeeded()
                     typesReady = true
                 }
             }
@@ -79,11 +89,8 @@ final class DragWheelController {
         updateHover(CGPoint(x: location.x - panel.frame.minX, y: panel.frame.maxY - location.y))
     }
 
-    private func show() {
-        closeTask?.cancel()
-        let matching = actionsProvider(dragFiles)
-        guard !matching.isEmpty else { return }
-        state.reset(actions: matching, files: dragFiles.map(\.url))
+    /// Create the native surface at launch, before the first drag asks SwiftUI to render.
+    private func preparePanel() {
         if panel == nil {
             let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: WheelGeometry.size, height: WheelGeometry.size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.isOpaque = false
@@ -108,6 +115,16 @@ final class DragWheelController {
             panel.contentView = surface
             self.panel = panel
         }
+    }
+
+    private func show() {
+        closeTask?.cancel()
+        let matching = preparedActions
+        guard !matching.isEmpty else { return }
+        state.reset(actions: matching, files: dragFiles.map(\.url))
+        preparePanel()
+        // Commit the hidden layout before publishing the animated visible state.
+        panel?.contentView?.layoutSubtreeIfNeeded()
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
         let frame = screen?.visibleFrame ?? NSRect(x: mouse.x - 500, y: mouse.y - 500, width: 1000, height: 1000)
@@ -159,36 +176,4 @@ final class DragWheelController {
             self?.panel?.orderOut(nil)
         }
     }
-}
-
-final class WheelDropView: NSView {
-    weak var controller: DragWheelController?
-    override var isFlipped: Bool { true }
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        registerForDraggedTypes([.fileURL])
-    }
-
-    required init?(coder: NSCoder) { nil }
-
-    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { draggingUpdated(sender) }
-    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        let location = convert(sender.draggingLocation, from: nil)
-        controller?.updateHover(CGPoint(x: location.x, y: isFlipped ? location.y : bounds.height - location.y))
-        return controller?.canDrop == true ? .copy : []
-    }
-    // The native destination owns the whole panel, independent of SwiftUI tile shapes.
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        bounds.contains(convert(point, from: superview)) ? self : nil
-    }
-    override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
-        draggingUpdated(sender) == .copy
-    }
-    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
-        // Resolve the final drop location rather than using the last polling tick.
-        guard draggingUpdated(sender) == .copy else { return false }
-        return controller?.accept(sender.draggingPasteboard) == true
-    }
-    override func wantsPeriodicDraggingUpdates() -> Bool { true }
 }

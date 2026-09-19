@@ -14,6 +14,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: Packages/TalosExtensions/package-lock.json
       - name: Verify toolchain
         run: |
           xcodebuild -version
@@ -24,6 +29,14 @@ jobs:
         run: |
           bash -n scripts/release.sh
           python3 -c 'import xml.etree.ElementTree as ET; ET.parse("docs/appcast.xml")'
+      - name: Upload installable actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: talos-built-in-actions
+          if-no-files-found: error
+          path: |
+            Packages/TalosExtensions/built-in-actions/dist/*.talos
+            Packages/TalosExtensions/built-in-actions/dist/release-config.json
       - name: Upload build logs
         if: failure()
         uses: actions/upload-artifact@v4

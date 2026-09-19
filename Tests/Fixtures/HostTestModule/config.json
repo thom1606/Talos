@@ -9,7 +9,6 @@
     "arm64",
     "x86_64"
   ],
-  "appBundle": "HostTestModule.app",
   "actions": [
     {
       "id": "inspect",
@@ -29,5 +28,7 @@
       ],
       "minimumFiles": 1
     }
-  ]
+  ],
+  "runtime": "javascript",
+  "entrypoint": "extension.mjs"
 }

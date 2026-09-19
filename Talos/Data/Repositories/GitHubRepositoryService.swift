@@ -1,5 +1,4 @@
 import Foundation
-import TalosSDK
 
 /// Authorization is scoped to api.github.com. Redirects to release storage lose it.
 nonisolated final class GitHubRedirectPolicy: NSObject, URLSessionTaskDelegate, Sendable {

@@ -1,6 +1,5 @@
 import Foundation
 import Darwin
-import TalosSDK
 
 // Advisory locks are released by the kernel if either app exits or crashes.
 nonisolated final class ModuleLease: Sendable {

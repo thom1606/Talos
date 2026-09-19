@@ -1,6 +1,5 @@
 import Foundation
 import CryptoKit
-import TalosSDK
 
 actor ModuleInstaller {
     private let modulesDirectory: URL
@@ -11,6 +10,17 @@ actor ModuleInstaller {
         guard let expected = manifest.release?.sha256 else { throw ManifestError.invalid("Missing release checksum") }
         let digest = SHA256.hash(data: try Data(contentsOf: archive, options: .mappedIfSafe)).map { String(format: "%02x", $0) }.joined()
         guard digest == expected.lowercased() else { throw ManifestError.invalid("Release checksum does not match config.json") }
+        return try extractArchive(archive, expected: manifest, sourceID: sourceID)
+    }
+
+    /// Local packages retain the user's original archive and use the same extraction checks.
+    func importPackage(_ archive: URL) throws -> InstalledModule {
+        let access = archive.startAccessingSecurityScopedResource()
+        defer { if access { archive.stopAccessingSecurityScopedResource() } }
+        return try extractArchive(archive)
+    }
+
+    private func extractArchive(_ archive: URL, expected manifest: ModuleManifest? = nil, sourceID: UUID? = nil) throws -> InstalledModule {
         // Validate entries BEFORE extraction: traversal and symlinks cannot write outside staging.
         let entries = try command("/usr/bin/unzip", ["-Z1", archive.path]).split(separator: "\n").map(String.init)
         guard !entries.isEmpty, entries.count < 20_000 else { throw ManifestError.invalid("Invalid archive") }
@@ -50,15 +60,10 @@ actor ModuleInstaller {
         let architecture = "x86_64"
         #endif
         guard manifest.architectures.contains(architecture) else { throw ManifestError.invalid("Module does not support this Mac's architecture") }
-        let app = directory.appendingPathComponent(manifest.appBundle)
-        guard let bundle = Bundle(url: app), let executable = bundle.executableURL,
-              (try executable.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else { throw ManifestError.invalid("Missing module executable") }
-        if expected != nil {
-            // Published native code must pass the system's distribution assessment.
-            _ = try command("/usr/sbin/spctl", ["--assess", "--type", "execute", app.path])
+        guard let entrypoint = manifest.entrypoint,
+              (try directory.appendingPathComponent(entrypoint).resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true else {
+            throw ManifestError.invalid("Missing JavaScript entrypoint")
         }
-        // Verify the bundle signature; do not remove quarantine or bypass Gatekeeper.
-        _ = try command("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
         guard let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isSymbolicLinkKey]) else {
             throw ManifestError.invalid("Cannot read module files")
         }

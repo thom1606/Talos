@@ -1,0 +1,31 @@
+{
+  "name": "@thom1606/talos-sdk",
+  "version": "2.0.0",
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "bin": {
+    "talos-build": "build.mjs"
+  },
+  "files": [
+    "src",
+    "build.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "esbuild": "0.25.12"
+  },
+  "description": "JavaScript extension SDK and .talos packager for Talos on macOS",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thom1606/Talos.git",
+    "directory": "Packages/TalosExtensions/sdk"
+  },
+  "homepage": "https://github.com/thom1606/Talos/blob/main/docs/SDK.md",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

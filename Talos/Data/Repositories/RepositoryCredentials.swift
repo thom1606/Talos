@@ -1,6 +1,5 @@
 import Foundation
 import Security
-import TalosSDK
 
 actor RepositoryCredentials {
     private let service = "com.thom1606.Talos.repositories"

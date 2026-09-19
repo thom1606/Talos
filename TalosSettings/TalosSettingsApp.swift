@@ -14,7 +14,9 @@ struct TalosSettingsApp: App {
     var body: some Scene {
         Window("Talos", id: "settings") {
             Group {
-                if onboarding {
+                if let session = NativeActionSession.current {
+                    if session.request.kind == "crop" { CropActionView(session: session) }
+                } else if onboarding {
                     OnboardingView {
                         onboarding = false
                         NSApp.terminate(nil)
@@ -22,6 +24,10 @@ struct TalosSettingsApp: App {
                 } else {
                     SettingsView(model: library)
                 }
+            }
+            .onOpenURL { url in
+                guard url.pathExtension.lowercased() == "talos" else { return }
+                Task { await library.importPackage(url) }
             }
         }
         .windowResizability(.contentSize)
@@ -33,6 +39,11 @@ struct TalosSettingsApp: App {
 @MainActor
 final class SettingsAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let session = NativeActionSession.current {
+            if session.request.kind == "image" { session.processImage(); NSApp.terminate(nil) }
+            else { NSApp.activate() }
+            return
+        }
         NSApp.activate()
         guard NSRunningApplication.runningApplications(withBundleIdentifier: "com.thom1606.Talos").isEmpty else { return }
         let host = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -42,5 +53,6 @@ final class SettingsAppDelegate: NSObject, NSApplicationDelegate {
         configuration.arguments = ["--background"]
         NSWorkspace.shared.openApplication(at: host, configuration: configuration)
     }
+    func applicationWillTerminate(_ notification: Notification) { NativeActionSession.current?.finish() }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }

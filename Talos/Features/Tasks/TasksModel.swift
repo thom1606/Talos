@@ -1,10 +1,9 @@
 import AppKit
-import TalosSDK
 
 @MainActor
 final class TasksModel {
     private let store = ModuleJobStore()
-    private var running: [UUID: NSRunningApplication] = [:]
+    private var scripts: [UUID: Process] = [:]
     private var notificationActions: [UUID: Set<String>] = [:]
     private var monitors: [UUID: Task<Void, Never>] = [:]
     private var finished: Set<UUID> = []
@@ -16,7 +15,7 @@ final class TasksModel {
         notifications.start()
         notifications.onAction = { [weak self] id, action in self?.notificationAction(id: id, action: action) }
     }
-    func run(module: InstalledModule, action: String, files: [ModuleFile], notificationAction: String? = nil) async {
+    func run(module: InstalledModule, action: String, files: [ModuleFile], notificationAction: String? = nil, settings: [String: String] = [:]) async {
         var scopes: [URL] = []
         var taskID: UUID?
         do {
@@ -27,12 +26,9 @@ final class TasksModel {
             taskID = id
             let title = actionTitle(action, in: module.manifest.actions) ?? module.manifest.name
             pill.start(id: id, title: title)
-            let configuration = NSWorkspace.OpenConfiguration()
-            configuration.arguments = ["--talos-invocation", invocation.workspace.appendingPathComponent("invocation.json").path]
-            configuration.createsNewApplicationInstance = true
-            configuration.activates = false
             do {
-                running[id] = try await NSWorkspace.shared.openApplication(at: module.appURL, configuration: configuration)
+                try module.manifest.validate()
+                scripts[id] = try JavaScriptRuntime.launch(module: module, invocation: invocation, settings: settings)
             } catch {
                 finish(id, message: error.localizedDescription, failed: true)
                 throw error
@@ -44,11 +40,14 @@ final class TasksModel {
                     withExtendedLifetime(lease) {}
                     for url in heldScopes { url.stopAccessingSecurityScopedResource() }
                     self.monitors[id] = nil
-                    self.running[id] = nil
+                    if let process = self.scripts[id], process.isRunning { process.terminate() }
+                    self.scripts[id] = nil
                     self.finished.remove(id)
                 }
+                var nativeRequests = Set<String>()
                 do {
                     while !Task.isCancelled {
+                        try await NativeActionBridge.openPending(invocation, handled: &nativeRequests)
                         for event in try await store.read(invocation) {
                             apply(event)
                             if event.kind == .notification {
@@ -59,7 +58,7 @@ final class TasksModel {
                             }
                         }
                         if finished.contains(id) { break }
-                        if running[id]?.isTerminated != false {
+                        if scripts[id]?.isRunning != true {
                             finish(id, message: "Module closed before completing the task", failed: true)
                             break
                         }
@@ -85,7 +84,7 @@ final class TasksModel {
     }
     func stopAll() {
         // Termination cannot wait for the asynchronous cancellation grace period.
-        for application in running.values { application.terminate() }
+        for process in scripts.values where process.isRunning { process.terminate() }
         for monitor in monitors.values { monitor.cancel() }
     }
     private func apply(_ event: ModuleEvent) {
@@ -106,11 +105,7 @@ final class TasksModel {
         Task {
             do {
                 guard let (installationID, invocation) = try await store.notificationContext(id: id, action: action) else { return }
-                if let app = running[id], !app.isTerminated {
-                    try await store.deliverNotificationAction(action, invocation: invocation)
-                } else {
-                    resumeNotification?(installationID, invocation, action)
-                }
+                resumeNotification?(installationID, invocation, action)
             } catch { finish(id, message: error.localizedDescription, failed: true) }
         }
     }

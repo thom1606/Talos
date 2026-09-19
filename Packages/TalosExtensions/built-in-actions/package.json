@@ -1,0 +1,15 @@
+{
+  "name": "@talos/built-in-actions",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "talos": {
+    "entry": "src/index.mjs"
+  },
+  "scripts": {
+    "build": "talos-build ."
+  },
+  "devDependencies": {
+    "@thom1606/talos-sdk": "2.0.0"
+  }
+}

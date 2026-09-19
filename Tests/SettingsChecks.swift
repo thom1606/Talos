@@ -1,5 +1,4 @@
 import AppKit
-import TalosSDK
 
 @main struct SettingsChecks {
     @MainActor static func main() async throws {

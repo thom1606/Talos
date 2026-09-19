@@ -68,6 +68,14 @@ command -v create-dmg >/dev/null || fail "create-dmg not found (brew install cre
 command -v gh >/dev/null         || fail "gh (GitHub CLI) not found"
 command -v python3 >/dev/null    || fail "python3 not found"
 
+# Package the actions from this exact checkout before archiving the host.
+npm ci --prefix Packages/TalosExtensions --cache /tmp/talos-npm-cache
+scripts/build-actions.sh
+mkdir -p "$BUILD_DIR"
+npm pack ./Packages/TalosExtensions/sdk --pack-destination "$BUILD_DIR" --cache /tmp/talos-npm-cache
+SDK_VERSION="$(node -p "require('./Packages/TalosExtensions/sdk/package.json').version")"
+SDK_ARCHIVE="$BUILD_DIR/thom1606-talos-sdk-$SDK_VERSION.tgz"
+
 # --- Version ---------------------------------------------------------------
 # Read the authoritative version values from the build settings.
 read_setting() {
@@ -257,7 +265,7 @@ gh release create "$TAG" \
   --target "$SOURCE_REVISION" \
   --title "$APP_NAME $MARKETING_VERSION" \
   --notes "Talos $MARKETING_VERSION (build $BUILD_NUMBER)" \
-  "$ZIP_PATH" "$DMG_PATH"
+  "$ZIP_PATH" "$DMG_PATH" "$SDK_ARCHIVE" "$ROOT_DIR/Packages/TalosExtensions/built-in-actions/dist/com.talos.actions.talos"
 
 log "Committing appcast…"
 FEED_CHECKOUT="$BUILD_DIR/feed-checkout"

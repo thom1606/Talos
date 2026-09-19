@@ -1,7 +1,6 @@
 import Foundation
 import OSLog
 import UserNotifications
-import TalosSDK
 
 nonisolated struct NotificationAccessState: Codable {
     let status: String

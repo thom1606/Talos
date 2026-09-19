@@ -3,7 +3,9 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let library = ModuleLibraryModel()
-    lazy var controller = DragWheelController(actionsProvider: { [weak self] files in self?.library.actions(for: files) ?? [] })
+    lazy var controller = DragWheelController(actionsProvider: { [weak self] files in self?.library.actions(for: files) ?? [] }, previewProvider: { [weak self] in
+        self?.library.previewActions() ?? []
+    })
     lazy var taskPill = TaskPillController(model: library.tasks.pill)
     private let preferences = HostPreferencesService()
     private var refresh: Task<Void, Never>?
@@ -21,11 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             library.configureHostNotifications()
             await library.load()
+            await library.installDefaultActionsIfNeeded()
             controller.start()
             taskPill.start()
-            Task { [library] in
-                await library.installDefaultActionsIfNeeded()
-            }
             preferences.start()
             await library.tasks.notifications.publishAccess()
             let defaults = UserDefaults.standard
@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         library.tasks.stopAll()
     }
     func showSettings() {
-        let app = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Talos Settings.app")
+        let app = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Talos.app")
         NSWorkspace.shared.openApplication(at: app, configuration: .init()) { _, error in
             if let error { NSLog("Cannot open Talos Settings: %@", error.localizedDescription) }
         }

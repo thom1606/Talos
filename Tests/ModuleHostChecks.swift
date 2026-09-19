@@ -1,6 +1,5 @@
 import AppKit
 import CryptoKit
-import TalosSDK
 
 @main
 struct ModuleHostChecks {
@@ -12,7 +11,7 @@ struct ModuleHostChecks {
         let installer = ModuleInstaller(modulesDirectory: root.appendingPathComponent("installed"))
         let installed = try await installer.importDirectory(example)
         precondition(installed.manifest.id == "dev.talos.host-test")
-        precondition(FileManager.default.fileExists(atPath: installed.appURL.path))
+        precondition(FileManager.default.fileExists(atPath: installed.directory.appendingPathComponent("extension.mjs").path))
         // A settings process cannot remove code while the host holds a task lease.
         var lease: ModuleLease? = try ModuleLease(installed)
         precondition(ModuleLease.isInUse(installed))
@@ -34,15 +33,18 @@ struct ModuleHostChecks {
         var json = try JSONSerialization.jsonObject(with: Data(contentsOf: example.appendingPathComponent("config.json"))) as! [String: Any]
         json["release"] = ["tag":"v1.0.0", "asset":"module.zip", "sha256":digest]
         let manifest = try JSONDecoder().decode(ModuleManifest.self, from: JSONSerialization.data(withJSONObject: json))
-        do {
-            _ = try await installer.install(archive: archive, manifest: manifest, sourceID: source.id)
-            fatalError("Accepted a local ad-hoc app as a published release")
-        } catch ManifestError.invalid(let message) {
-            precondition(message.contains("spctl"), "Release failed before the Gatekeeper check: \(message)")
-        }
+        let released = try await installer.install(archive: archive, manifest: manifest, sourceID: source.id)
+        try await installer.remove(released)
+        var native = json
+        native.removeValue(forKey: "runtime")
+        native.removeValue(forKey: "entrypoint")
+        native["appBundle"] = "Old.app"
+        let oldManifest = try JSONDecoder().decode(ModuleManifest.self, from: JSONSerialization.data(withJSONObject: native))
+        do { try oldManifest.validate(); fatalError("Accepted a native extension") }
+        catch is ManifestError {}
         let updated = try await installer.importDirectory(example)
         precondition(updated.manifest.id == manifest.id)
-        precondition(FileManager.default.fileExists(atPath: installed.appURL.path), "Installation replaced old version before activation")
+        precondition(FileManager.default.fileExists(atPath: installed.directory.appendingPathComponent("extension.mjs").path), "Installation replaced old version before activation")
         let corrupt = root.appendingPathComponent("bad.zip")
         try Data("invalid".utf8).write(to: corrupt)
         do { _ = try await installer.install(archive: corrupt, manifest: manifest, sourceID: source.id); fatalError("Accepted bad checksum") }
@@ -55,9 +57,13 @@ struct ModuleHostChecks {
         let files = await FileInspector().inspect([file])
         precondition(files.count == 1 && files[0].typeIdentifier == "public.plain-text")
         let invocation = try await jobs.create(module: installed, action: "report", files: files)
-        let session = try ModuleSession(invocationURL: invocation.workspace.appendingPathComponent("invocation.json"))
-        try await session.progress(0.5, message: "Half")
-        try await session.notify("Ready", actions: [.init(id: "reveal", title: "Reveal")])
+        let progress = ModuleEvent(kind: .progress, taskID: invocation.taskID, message: "Half", fraction: 0.5, outputs: nil, actions: nil)
+        let notification = ModuleEvent(kind: .notification, taskID: invocation.taskID, message: "Ready", fraction: nil, outputs: nil, actions: [.init(id: "reveal", title: "Reveal")])
+        var stream = try JSONEncoder().encode(progress)
+        stream.append(10)
+        stream.append(try JSONEncoder().encode(notification))
+        stream.append(10)
+        try stream.write(to: invocation.workspace.appendingPathComponent("events.jsonl"))
         let events = try await jobs.read(invocation)
         precondition(events.count == 2)
         let next = try await jobs.read(invocation)
@@ -68,15 +74,9 @@ struct ModuleHostChecks {
         let unauthorized = try await jobs.notificationContext(id: invocation.taskID, action: "unknown")
         precondition(unauthorized == nil)
         try await jobs.cancel(invocation)
-        do { try await session.checkCancellation(); fatalError("Cancellation not delivered") }
-        catch is CancellationError {}
-
-        // Real separate module process: read the test file and stream a completed report.
+        precondition(FileManager.default.fileExists(atPath: invocation.workspace.appendingPathComponent("cancel").path))
         let actual = try await jobs.create(module: installed, action: "report", files: files)
-        let process = Process()
-        process.executableURL = installed.appURL.appendingPathComponent("Contents/MacOS/HostTestModule")
-        process.arguments = ["--talos-invocation", actual.workspace.appendingPathComponent("invocation.json").path]
-        try process.run()
+        let process = try JavaScriptRuntime.launch(module: installed, invocation: actual, settings: [:], hostBundle: URL(fileURLWithPath: CommandLine.arguments[2]))
         let deadline = Date.now.addingTimeInterval(15)
         var completed = false
         while Date.now < deadline {
@@ -88,12 +88,12 @@ struct ModuleHostChecks {
         precondition(completed, "Real module did not complete")
         struct Report: Decodable { let path: String; let bytes: Int64 }
         let report = try JSONDecoder().decode([Report].self,
-            from: Data(contentsOf: actual.workspace.appendingPathComponent("report.json")))
+            from: Data(contentsOf: installed.directory.appendingPathComponent("report.json")))
         precondition(report.count == 1 && report[0].path == file.path,
                      "Report must contain exactly the selected file")
         precondition(report[0].bytes == Int64(input.count), "Report byte count must match the input")
         try await installer.remove(installed)
         try await installer.remove(updated)
-        print("Passed: repository identity, signed import, unsigned-release rejection, checksum rejection, file types, event streaming, cancellation, notification routing and real background module")
+        print("Passed: repository identity, JavaScript import, native-extension rejection, checksum rejection, file types, event streaming, cancellation, notification routing and real background JavaScript")
     }
 }

@@ -1,50 +1,37 @@
-<!-- markdownlint-disable-next-line first-line-heading -->
+![Talos](assets/readme-banner.png)
 
-![Talos](./assets/readme-banner.png)
+Drag files, hold **Shift**, and drop them on an action. Talos puts everyday file tools right under your pointer.
 
-Welcome to **Talos**. Keep working in Finder: drag files, hold Shift, and a
-small action wheel appears under your pointer. Pick what you want to do and
-Talos hands the selected files to a native action on your Mac.
+![The Talos action wheel](assets/wheel-preview.png)
 
-## Getting Started
+## Get started
 
-1. Download the latest Talos release from [GitHub Releases](https://github.com/thom1606/Talos/releases/latest).
-2. Open the DMG and drag **Talos** to your Applications folder.
-3. Launch Talos once and complete the short setup.
-4. In Finder, start dragging a file or folder and hold **Shift**. Drop it on
-   an action in the wheel.
+1. Download Talos from [Releases](https://github.com/thom1606/Talos/releases/latest).
+2. Open the DMG, move Talos to Applications, and launch it.
+3. Drag a file in Finder, hold **Shift**, and choose an action.
 
-Talos runs quietly in the background, without a Dock icon or menu bar item.
-Open it again whenever you want to change its settings or arrange your wheel.
+Talos runs in the background. Open it again to arrange your wheel, add extensions, or change settings. You do not need Xcode, Swift, Node.js, or Homebrew.
 
-## Features
+## Included actions
 
-- Actions appear only when they support every file in the current drag.
-- Organise actions into folders, place an action more than once, and order the
-  wheel exactly as you prefer.
-- Hold over a folder to open it; hold over the centre to return.
-- Add actions from public or private GitHub repositories, or a local folder.
-- Native modules run separately from Talos and can report progress,
-  notifications, and completion in the background.
-- Choose whether Talos starts at login, checks for updates, and plays sounds.
+- **Convert** — hover to choose an image, audio, or video format that matches your files.
+- **Archive** — collect your selected files and folders in one ZIP.
+- **Remove metadata** — create a clean PNG image without copying source metadata.
+- **Compress** — make smaller media files using high-quality compression.
+- **Crop** — select part of one image and save it as a new PNG.
 
-## Privacy & Security
+Results are saved beside the original. Your original files and existing results are never overwritten. The actions are included in Talos, including when you first launch offline. Some media operations need ffmpeg: Talos uses an existing installation or downloads a verified copy automatically on first use. That first download needs an internet connection.
 
-Talos only passes files to the action you drop them on. Modules are installed
-as signed macOS app bundles and verified before Talos runs them. Repository
-tokens for private sources are stored in your Keychain.
+## Make it yours
 
-## Development
+Open Talos to drag actions onto the wheel, organise folders, and place the same action more than once. Click a tile to change its name and settings, or press and hold a folder tile to open it. Each placement has its own settings; password fields are stored in macOS Keychain.
 
-Talos is built with Swift 6 and SwiftUI. To contribute to the host app, clone
-this repository and open `Talos.xcodeproj` in Xcode 27. Build and run the
-automated checks with:
+The interface follows your Mac's language, with English, Dutch, Spanish, and French translations, and respects reduced-motion and reduced-transparency preferences.
 
-```sh
-scripts/verify.sh
-```
+## Add extensions
 
-To create an action, start with
-[Talos-Actions-Example](https://github.com/thom1606/Talos-Actions-Example).
-The [SDK guide](docs/SDK.md) covers local development, release packaging,
-signing, and distribution.
+Import a `.talos` file from **Repositories → Add → Import extension…**, or double-click the package. You can also add a GitHub repository URL in **Repositories**. Talos downloads its published JavaScript release; nothing is compiled on your Mac. Private repositories use a GitHub token with read access to repository contents.
+
+Extensions run code on your Mac, with access to files, processes, and the network. Add repositories from authors you trust. A release checksum detects mismatched downloads; it does not certify the author or restrict what their code can do.
+
+Want to create an extension? Start with [Talos-Actions-Example](https://github.com/thom1606/Talos-Actions-Example) and the short [SDK guide](docs/SDK.md). To work on Talos itself, see [Contributing](CONTRIBUTING.md).

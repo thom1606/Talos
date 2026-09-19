@@ -1,5 +1,4 @@
 import Foundation
-import TalosSDK
 
 actor LocalRepositoryService {
     func refresh(_ source: RepositorySource) throws -> RepositorySource {
