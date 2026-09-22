@@ -109,8 +109,8 @@ the tests without access to signing credentials.
 
 The signing job uses the existing `DEVELOPER_ID_CERT_P12`,
 `DEVELOPER_ID_CERT_PASSWORD`, `ASC_API_KEY_P8`, `ASC_API_KEY_ID` and
-`ASC_API_ISSUER_ID` repository secrets. It does not create a GitHub Release or
-change the Sparkle feed; the previous feed is retained in `docs/appcast.xml`.
+`ASC_API_ISSUER_ID` repository secrets. Version tags additionally publish a
+GitHub Release and signed Sparkle feed, as described below.
 
 The SDK has its own repository and npm publishing workflow:
 [thom1606/talos-sdk](https://github.com/thom1606/talos-sdk).
@@ -123,7 +123,7 @@ Pushes to `main` build and test the app without publishing an update.
 To publish the next version, tag the intended commit and push that tag:
 
 ```sh
-git tag v1.0.1
+git tag -a v1.0.1 -m 'Talos 1.0.1'
 git push origin v1.0.1
 ```
 
