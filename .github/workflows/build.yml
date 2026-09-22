@@ -68,6 +68,7 @@ jobs:
             -destination 'generic/platform=macOS' -archivePath build/Talos.xcarchive \
             -derivedDataPath build/release \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Developer ID Application' \
+            DEVELOPMENT_TEAM=U6WA8YA735 \
             PROVISIONING_PROFILE_SPECIFIER='' CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
       - name: Notarize and package app
         env:
