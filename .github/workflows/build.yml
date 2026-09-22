@@ -80,7 +80,14 @@ jobs:
           codesign --verify --deep --strict "$app_path"
           ditto -c -k --keepParent "$app_path" build/notarize.zip
           xcrun notarytool submit build/notarize.zip --key "$RUNNER_TEMP/talos-asc.p8" \
-            --key-id "$ASC_API_KEY_ID" --issuer "$ASC_API_ISSUER_ID" --wait
+            --key-id "$ASC_API_KEY_ID" --issuer "$ASC_API_ISSUER_ID" --wait \
+            --output-format json > build/notarization.json
+          cat build/notarization.json
+          submission_id="$(python3 -c 'import json; print(json.load(open("build/notarization.json"))["id"])')"
+          xcrun notarytool log "$submission_id" --key "$RUNNER_TEMP/talos-asc.p8" \
+            --key-id "$ASC_API_KEY_ID" --issuer "$ASC_API_ISSUER_ID" build/notarization-log.json
+          cat build/notarization-log.json
+          python3 -c 'import json; result = json.load(open("build/notarization.json")); assert result["status"] == "Accepted", result'
           xcrun stapler staple "$app_path"
           xcrun stapler validate "$app_path"
           spctl --assess --type execute "$app_path"
