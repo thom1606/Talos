@@ -8,6 +8,8 @@ right under your pointer in a configurable action wheel.
 This directory contains the macOS app. To build extensions, see the
 [Talos SDK](https://github.com/thom1606/talos-sdk).
 
+![Talos action wheel preview](assets/app-preview.png)
+
 ## Using Talos
 
 1. Launch Talos and complete onboarding. Finder opens and the wheel starts with
@@ -112,3 +114,35 @@ change the Sparkle feed; the previous feed is retained in `docs/appcast.xml`.
 
 The SDK has its own repository and npm publishing workflow:
 [thom1606/talos-sdk](https://github.com/thom1606/talos-sdk).
+
+## App releases
+
+App updates are published only from stable version tags such as `v1.0.0`.
+Pushes to `main` build and test the app without publishing an update.
+
+To publish the next version, tag the intended commit and push that tag:
+
+```sh
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+CI runs the app flows, archives and exports a Developer ID build, notarizes it,
+and publishes a GitHub Release containing `Talos.dmg`, `Talos.zip`, checksums,
+and the signed Sparkle `appcast.xml`. The tag sets the app version; the CI run
+number provides the increasing build number. Existing published versions
+cannot be overwritten.
+
+The app reads updates from
+[the appcast](https://thom1606.github.io/Talos/appcast.xml). The Pages workflow
+publishes the feed from the latest GitHub Release and verifies that the update
+can be downloaded without authentication.
+
+For the initial public launch, make the repository public and select
+**Settings → Pages → Build and deployment → Source: GitHub Actions**. Run
+**Publish appcast to GitHub Pages** once. Later releases deploy automatically.
+GitHub Free does not host Pages for this repository while it is private.
+
+Signing uses the existing Apple signing/notarization secrets and
+`SPARKLE_PRIVATE_KEY`. CI verifies the update signature against the public key
+embedded in the app before publishing.

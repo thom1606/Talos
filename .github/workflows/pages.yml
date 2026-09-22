@@ -1,0 +1,70 @@
+name: Publish appcast to GitHub Pages
+on:
+  public:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Build Talos]
+    types: [completed]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: >-
+      !github.event.repository.private &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event != 'pull_request' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare site from latest published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p _site
+          cp docs/index.html _site/index.html
+          touch _site/.nojekyll
+          gh release download --pattern appcast.xml --dir _site
+          python3 <<'PYTHON'
+          import os, urllib.request, xml.etree.ElementTree as ET
+          feed = ET.parse('_site/appcast.xml')
+          enclosure = feed.find('./channel/item/enclosure')
+          assert enclosure is not None, 'The published release has no update entry'
+          url = enclosure.attrib['url']
+          assert url.startswith(f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/")
+          request = urllib.request.Request(url, method='HEAD')
+          with urllib.request.urlopen(request) as response:
+              assert response.status == 200, 'The update must be downloadable without authentication'
+          PYTHON
+      - name: Check Pages configuration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pages" > /dev/null || {
+            echo '::error::Enable Settings → Pages → Source: GitHub Actions, then rerun this workflow.'
+            exit 1
+          }
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - name: Deploy appcast
+        id: deployment
+        uses: actions/deploy-pages@v5
+      - name: Verify live appcast
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors \
+            "${PAGE_URL}appcast.xml?run=${GITHUB_RUN_ID}" --output /tmp/appcast.xml
+          cmp _site/appcast.xml /tmp/appcast.xml

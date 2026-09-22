@@ -2,12 +2,13 @@ name: Build Talos
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: talos-${{ github.ref }}
+  group: talos-${{ startsWith(github.ref, 'refs/tags/v') && 'release' || github.ref }}
   cancel-in-progress: false
 jobs:
   test:
@@ -31,11 +32,41 @@ jobs:
           if-no-files-found: warn
   package:
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: xcode-27
     timeout-minutes: 60
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
+      - name: Prepare release version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+        run: |
+          mkdir -p build
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > build/releases.json
+          python3 <<'PYTHON'
+          import json, os, re
+          from pathlib import Path
+          tag = os.environ['RELEASE_TAG']
+          version = re.search(r'MARKETING_VERSION = ([^;]+);', Path('Talos.xcodeproj/project.pbxproj').read_text())[1]
+          if tag:
+              if not re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', tag):
+                  raise SystemExit('Release tags must use vMAJOR.MINOR.PATCH, for example v1.0.0')
+              version = tag[1:]
+              current = tuple(map(int, version.split('.')))
+              for release in json.loads(Path('build/releases.json').read_text()):
+                  if release['draft'] or release['prerelease']:
+                      continue
+                  previous = release['tag_name']
+                  if re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', previous):
+                      if current <= tuple(map(int, previous[1:].split('.'))):
+                          raise SystemExit(f'{tag} must be newer than published release {previous}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'version={version}\n')
+          PYTHON
       - name: Import signing credentials
         env:
           CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
@@ -63,13 +94,16 @@ jobs:
           security list-keychains -d user -s "$signing_keychain" "$HOME/Library/Keychains/login.keychain-db"
           rm "$RUNNER_TEMP/talos-cert.p12"
       - name: Archive with Developer ID
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
         run: |
           xcodebuild archive -project Talos.xcodeproj -scheme Talos -configuration Release \
             -destination 'generic/platform=macOS' -archivePath build/Talos.xcarchive \
             -derivedDataPath build/release \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Developer ID Application' \
             DEVELOPMENT_TEAM=U6WA8YA735 \
-            PROVISIONING_PROFILE_SPECIFIER='' CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+            PROVISIONING_PROFILE_SPECIFIER='' CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            MARKETING_VERSION="$APP_VERSION"
       - name: Export for distribution
         run: |
           xcodebuild -exportArchive -archivePath build/Talos.xcarchive \
@@ -102,6 +136,44 @@ jobs:
           hdiutil create -volname Talos -srcfolder build/dmg -ov -format UDZO build/distribution/Talos.dmg
           cd build/distribution
           shasum -a 256 Talos.zip Talos.dmg > SHA256SUMS
+      - name: Generate signed Sparkle appcast
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test -n "$SPARKLE_PRIVATE_KEY" || { echo '::error::Missing SPARKLE_PRIVATE_KEY'; exit 1; }
+          mkdir -p build/appcast
+          cp build/distribution/Talos.zip build/appcast/
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | \
+            build/release/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast \
+              --ed-key-file - --maximum-deltas 0 \
+              --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/" \
+              --full-release-notes-url "https://github.com/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG" \
+              -o build/distribution/appcast.xml build/appcast
+          swift scripts/verify-appcast.swift build/distribution/appcast.xml \
+            build/distribution/Talos.zip build/export/Talos.app/Contents/Info.plist \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/Talos.zip"
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > build/release-is-draft.txt 2>/dev/null; then
+            test "$(cat build/release-is-draft.txt)" = true || { echo '::error::Published releases cannot be replaced'; exit 1; }
+          else
+            printf 'Talos %s for macOS 27 or later.\n\nDownload Talos.dmg or Talos.zip below. Both contain the Developer ID signed and notarized app.\n' "$APP_VERSION" > build/release-notes.md
+            gh release create "$RELEASE_TAG" --verify-tag --draft \
+              --title "Talos $APP_VERSION" --notes-file build/release-notes.md
+          fi
+          gh release upload "$RELEASE_TAG" build/distribution/Talos.zip \
+            build/distribution/Talos.dmg build/distribution/SHA256SUMS \
+            build/distribution/appcast.xml --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest
       - uses: actions/upload-artifact@v7
         with:
           name: talos-macOS-${{ github.run_number }}
