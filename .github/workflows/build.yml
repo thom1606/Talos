@@ -70,13 +70,17 @@ jobs:
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Developer ID Application' \
             DEVELOPMENT_TEAM=U6WA8YA735 \
             PROVISIONING_PROFILE_SPECIFIER='' CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+      - name: Export for distribution
+        run: |
+          xcodebuild -exportArchive -archivePath build/Talos.xcarchive \
+            -exportPath build/export -exportOptionsPlist Configuration/ExportOptions.plist
       - name: Notarize and package app
         env:
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
           ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
         run: |
           set -euo pipefail
-          app_path="$PWD/build/Talos.xcarchive/Products/Applications/Talos.app"
+          app_path="$PWD/build/export/Talos.app"
           codesign --verify --deep --strict "$app_path"
           ditto -c -k --keepParent "$app_path" build/notarize.zip
           xcrun notarytool submit build/notarize.zip --key "$RUNNER_TEMP/talos-asc.p8" \
