@@ -150,8 +150,7 @@ final class TalosFlows: XCTestCase {
         XCTAssertTrue(wheel.exists)
         XCTAssertFalse(app.buttons["Folder"].exists)
         // Coordinates are relative to the actual accessibility frames, not screen pixels.
-        // The empty wheel exposes only its center circle. Drop 90 pt above its center,
-        // on the visible ring, and use the same point to click the resulting segment.
+        // Drop on the visible ring above the center of the wheel.
         let destination = wheel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .withOffset(CGVector(dx: 0, dy: -90))
         source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
@@ -168,6 +167,7 @@ final class TalosFlows: XCTestCase {
         app.terminate()
         app.launch()
         XCTAssertTrue(app.buttons["Work tools"].waitForExistence(timeout: 10))
+        focusSettings()
         app.buttons["Work tools"].click()
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         XCTAssertEqual(name.value as? String, "Work tools")
@@ -194,9 +194,13 @@ final class TalosFlows: XCTestCase {
         guard openSettings else { return }
         app.activate()
         app.typeKey(",", modifierFlags: .command)
+        focusSettings()
+    }
+
+    private func focusSettings() {
         XCTAssertTrue(app.windows["settings"].waitForExistence(timeout: 10))
         app.activate()
-        // A menu-bar app can still be inactive after closing onboarding.
+        // A menu-bar app can still be behind Finder after onboarding or relaunch.
         // Focus its titlebar before starting gestures that require the first mouse event.
         app.windows["settings"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04)).click()
     }
