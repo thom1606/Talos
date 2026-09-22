@@ -1,84 +1,87 @@
-import Foundation
-import OSLog
+import AppKit
+import Observation
 import UserNotifications
 
-nonisolated struct NotificationAccessState: Codable {
-    let status: String
-    let error: String?
-    let updatedAt: Date
-}
-
 @MainActor
+@Observable
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
-    var onAction: (@MainActor (UUID, String) -> Void)?
-    private var categories: Set<UNNotificationCategory> = []
-    func start() { UNUserNotificationCenter.current().delegate = self }
-    private var lastError: String?
-    func requestAccess() async throws -> Bool {
-        do {
-            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
-            lastError = nil
-            await publishAccess()
-            return granted
-        } catch {
-            lastError = error.localizedDescription
-            await publishAccess()
-            throw error
-        }
+    private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    private(set) var isRequesting = false
+    var errorMessage: String?
+    @ObservationIgnored var openRepositories: (() -> Void)?
+    @ObservationIgnored private let center = UNUserNotificationCenter.current()
+
+    var isAuthorized: Bool { authorizationStatus == .authorized || authorizationStatus == .provisional }
+
+    func start() {
+        center.delegate = self
+        Task { await refreshAuthorization() }
     }
-    func publishAccess() async {
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        let status: String = switch settings.authorizationStatus {
-        case .authorized: settings.alertStyle == .none ? "silent" : "authorized"
-        case .provisional: "silent"
-        case .denied: "denied"
-        default: "notDetermined"
+
+    func refreshAuthorization() async {
+        authorizationStatus = await center.notificationSettings().authorizationStatus
+    }
+
+    /// Only a user action asks macOS for permission; background checks never trigger a prompt.
+    func requestAuthorization() async {
+        guard !isRequesting else { return }
+        isRequesting = true
+        errorMessage = nil
+        defer { isRequesting = false }
+        await refreshAuthorization()
+        if authorizationStatus == .denied {
+            openSystemSettings()
+            return
         }
         do {
-            try FileManager.default.createDirectory(at: TalosPaths.root, withIntermediateDirectories: true)
-            let state = NotificationAccessState(status: status, error: lastError, updatedAt: .now)
-            try JSONEncoder().encode(state).write(to: TalosPaths.notificationState, options: .atomic)
-        } catch {
-            Logger(subsystem: "com.thom1606.Talos", category: "notifications").error("Cannot publish notification status: \(error.localizedDescription, privacy: .public)")
-        }
+            if authorizationStatus == .notDetermined {
+                _ = try await center.requestAuthorization(options: [.alert, .sound])
+            }
+            await refreshAuthorization()
+        } catch { errorMessage = error.localizedDescription }
     }
-    func sendTest() async {
-        do {
-            let content = UNMutableNotificationContent()
-            content.title = "Talos"
-            content.body = "Notifications are working."
-            content.sound = .default
-            try await UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
-            lastError = nil
-        } catch { lastError = error.localizedDescription }
-        await publishAccess()
+
+    func openSystemSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") else { return }
+        NSWorkspace.shared.open(url)
     }
-    func post(_ event: ModuleEvent, module: InstalledModule) async throws {
-        let centre = UNUserNotificationCenter.current()
-        if await centre.notificationSettings().authorizationStatus == .notDetermined { _ = try await requestAccess() }
-        guard await centre.notificationSettings().authorizationStatus == .authorized else { return }
-        let actions = event.actions ?? []
-        let categoryID = "talos.\(event.taskID.uuidString)"
-        let category = UNNotificationCategory(identifier: categoryID, actions: actions.map {
-            UNNotificationAction(identifier: $0.id, title: $0.title)
-        }, intentIdentifiers: [])
-        categories.update(with: category)
-        centre.setNotificationCategories(categories)
+
+    /// Returns true only after macOS accepted the request, so failed or denied delivery is retryable.
+    func postRepositoryUpdate(_ update: RepositoryUpdate) async throws -> Bool {
+        await refreshAuthorization()
+        guard isAuthorized else { return false }
         let content = UNMutableNotificationContent()
-        content.title = module.manifest.name; content.body = event.message
+        content.title = String(localized: "Repository update available")
+        if let version = update.version {
+            content.body = String(localized: "\(update.repositoryName) has a new release (\(version)). Open Talos to update.")
+        } else {
+            content.body = String(localized: "\(update.repositoryName) has a new release. Open Talos to update.")
+        }
         content.sound = .default
-        content.categoryIdentifier = categoryID
-        content.userInfo = ["taskID": event.taskID.uuidString]
-        try await centre.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        content.userInfo = ["repositoryID": update.repositoryID]
+        content.threadIdentifier = "repository-updates"
+        try Task.checkCancellation()
+        try await center.add(UNNotificationRequest(identifier: notificationID(update.repositoryID), content: content, trigger: nil))
+        return true
     }
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard let raw = response.notification.request.content.userInfo["taskID"] as? String,
-              let id = UUID(uuidString: raw), response.actionIdentifier != UNNotificationDefaultActionIdentifier,
-              response.actionIdentifier != UNNotificationDismissActionIdentifier else { return }
-        let action = response.actionIdentifier
-        await MainActor.run { self.onAction?(id, action) }
+
+    func dismissRepositoryUpdate(_ id: String) {
+        let ids = [notificationID(id)]
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+        center.removeDeliveredNotifications(withIdentifiers: ids)
     }
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
+
+    private func notificationID(_ repositoryID: String) -> String { "talos.repository-update.\(repositoryID)" }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                           willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        [.banner, .list, .sound]
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                           didReceive response: UNNotificationResponse) async {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+              response.notification.request.content.userInfo["repositoryID"] is String else { return }
+        await MainActor.run { self.openRepositories?() }
     }
 }

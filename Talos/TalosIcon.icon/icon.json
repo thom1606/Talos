@@ -1,35 +1,24 @@
 {
   "fill" : {
-    "automatic-gradient" : "display-p3:0.96786,1.00000,0.97589,1.00000"
+    "automatic-gradient" : "display-p3:0.68627,0.18824,0.07451,1.00000"
   },
   "groups" : [
-    {
-      "layers" : [
-        {
-          "image-name" : "2. accent 2.png",
-          "name" : "2. accent 2"
-        }
-      ],
-      "position" : {
-        "scale" : 0.9,
-        "translation-in-points" : [
-          0,
-          0
-        ]
-      },
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
-      }
-    },
     {
       "blur-material" : null,
       "layers" : [
         {
+          "image-name" : "2. accent.png",
+          "name" : "2. accent",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "hidden" : false,
           "image-name" : "1. base.png",
           "name" : "1. base"
         }

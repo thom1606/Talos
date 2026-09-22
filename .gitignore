@@ -1,10 +1,54 @@
+# macOS
 .DS_Store
-.build/
-.swiftpm/
-DerivedData/
-*.xcuserstate
-xcuserdata/
-build/
-dist/
+.AppleDouble
+.LSOverride
+._*
 
-node_modules/
+# Xcode user data and generated output
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcarchive
+
+# Swift Package Manager and SourceKit
+.build/
+.index-build/
+.swiftpm/
+.sourcekit-lsp/
+
+# Dependency managers
+Pods/
+Carthage/Build/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Generated packages and test results
+*.talos
+*.xcresult/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Fastlane generated files
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/

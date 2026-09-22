@@ -1,45 +1,102 @@
-name: Build and test
+name: Build Talos
 on:
   push:
     branches: [main]
-    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
   workflow_dispatch:
-  workflow_call:
 permissions:
   contents: read
+concurrency:
+  group: talos-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  build:
+  test:
     runs-on: xcode-27
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: Packages/TalosExtensions/package-lock.json
-      - name: Verify toolchain
+      - uses: actions/checkout@v7
+      - name: Build and run real app flows
         run: |
           xcodebuild -version
-          xcrun --sdk macosx --show-sdk-version
-      - name: Build host and test SDK and module integration
-        run: scripts/verify.sh
-      - name: Validate release metadata
+          xcodebuild test -project Talos.xcodeproj -scheme Talos \
+            -configuration Debug -destination 'platform=macOS' \
+            -derivedDataPath build/tests -resultBundlePath build/TalosFlows.xcresult \
+            -parallel-testing-enabled NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: talos-ui-results
+          path: build/TalosFlows.xcresult
+          if-no-files-found: warn
+  package:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Import signing credentials
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
         run: |
-          bash -n scripts/release.sh
-          python3 -c 'import xml.etree.ElementTree as ET; ET.parse("docs/appcast.xml")'
-      - name: Upload installable actions
-        uses: actions/upload-artifact@v4
+          set -euo pipefail
+          for name in CERT_P12 CERT_PASSWORD ASC_API_KEY_P8 ASC_API_KEY_ID ASC_API_ISSUER_ID; do
+            test -n "${!name}" || { echo "::error::Missing signing secret: $name"; exit 1; }
+          done
+          umask 077
+          signing_keychain="$RUNNER_TEMP/talos-signing.keychain-db"
+          signing_password="$(openssl rand -base64 32)"
+          echo "::add-mask::$signing_password"
+          printf '%s' "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/talos-cert.p12"
+          printf '%s' "$ASC_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/talos-asc.p8"
+          security create-keychain -p "$signing_password" "$signing_keychain"
+          security set-keychain-settings -lut 21600 "$signing_keychain"
+          security unlock-keychain -p "$signing_password" "$signing_keychain"
+          security import "$RUNNER_TEMP/talos-cert.p12" -P "$CERT_PASSWORD" -t cert -f pkcs12 \
+            -k "$signing_keychain" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k "$signing_password" "$signing_keychain" >/dev/null
+          security list-keychains -d user -s "$signing_keychain" "$HOME/Library/Keychains/login.keychain-db"
+          rm "$RUNNER_TEMP/talos-cert.p12"
+      - name: Archive with Developer ID
+        run: |
+          xcodebuild archive -project Talos.xcodeproj -scheme Talos -configuration Release \
+            -destination 'generic/platform=macOS' -archivePath build/Talos.xcarchive \
+            -derivedDataPath build/release \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Developer ID Application' \
+            PROVISIONING_PROFILE_SPECIFIER='' CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+      - name: Notarize and package app
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          app_path="$PWD/build/Talos.xcarchive/Products/Applications/Talos.app"
+          codesign --verify --deep --strict "$app_path"
+          ditto -c -k --keepParent "$app_path" build/notarize.zip
+          xcrun notarytool submit build/notarize.zip --key "$RUNNER_TEMP/talos-asc.p8" \
+            --key-id "$ASC_API_KEY_ID" --issuer "$ASC_API_ISSUER_ID" --wait
+          xcrun stapler staple "$app_path"
+          xcrun stapler validate "$app_path"
+          spctl --assess --type execute "$app_path"
+          mkdir -p build/distribution build/dmg
+          ditto -c -k --sequesterRsrc --keepParent "$app_path" build/distribution/Talos.zip
+          ditto "$app_path" build/dmg/Talos.app
+          ln -s /Applications build/dmg/Applications
+          hdiutil create -volname Talos -srcfolder build/dmg -ov -format UDZO build/distribution/Talos.dmg
+          cd build/distribution
+          shasum -a 256 Talos.zip Talos.dmg > SHA256SUMS
+      - uses: actions/upload-artifact@v7
         with:
-          name: talos-built-in-actions
+          name: talos-macOS-${{ github.run_number }}
+          path: build/distribution/
           if-no-files-found: error
-          path: |
-            Packages/TalosExtensions/built-in-actions/dist/*.talos
-            Packages/TalosExtensions/built-in-actions/dist/release-config.json
-      - name: Upload build logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: /tmp/talos-build.log
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/talos-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/talos-cert.p12" "$RUNNER_TEMP/talos-asc.p8"
