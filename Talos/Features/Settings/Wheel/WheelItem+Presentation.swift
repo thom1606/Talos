@@ -4,12 +4,12 @@ extension WheelItem {
     func title(using tiles: [WheelTilePresentation]) -> String {
         if isFolder {
             let title = customTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return title.isEmpty ? "Folder" : title
+            return title.isEmpty ? String(localized: "Folder") : title
         }
 
         return customTitle
             ?? tiles.first(where: { $0.id == actionID })?.title
-            ?? "Unavailable action"
+            ?? String(localized: "Unavailable action")
     }
 
     func symbolName(using tiles: [WheelTilePresentation]) -> String {

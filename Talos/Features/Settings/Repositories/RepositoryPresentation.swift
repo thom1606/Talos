@@ -37,17 +37,17 @@ struct RepositoryPresentation: Identifiable {
         var title: String {
             switch self {
             case .running:
-                "Running"
+                String(localized: "Running")
             case .updateAvailable:
-                "Update available"
+                String(localized: "Update available")
             case .fetching:
-                "Fetching latest version"
+                String(localized: "Fetching latest version")
             case .installing:
-                "Installing extension"
+                String(localized: "Installing extension")
             case .buildRequired:
-                "Build required"
+                String(localized: "Build required")
             case .permissionDenied:
-                "No repository permission"
+                String(localized: "No repository permission")
             }
         }
 
@@ -103,18 +103,19 @@ struct RepositoryPresentation: Identifiable {
                 if let installedVersion = repository.installedVersion {
                     installedVersion
                 } else {
-                    "Running"
+                    String(localized: "Running")
                 }
             case .updateAvailable:
-                repository.availableVersion.map { "Update available: \($0)" } ?? "New update available"
+                repository.availableVersion.map { String(format: String(localized: "Update available: %@"), $0) }
+                    ?? String(localized: "New update available")
             case .fetching:
-                "Fetching latest version…"
+                String(localized: "Fetching latest version…")
             case .installing:
-                "Installing the extension…"
+                String(localized: "Installing the extension…")
             case .buildRequired:
-                "Build project to proceed"
+                String(localized: "Build project to proceed")
             case .permissionDenied:
-                "No permission to repository"
+                String(localized: "No permission to repository")
             }
         }
     }

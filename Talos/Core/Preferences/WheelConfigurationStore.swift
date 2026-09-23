@@ -9,7 +9,7 @@ enum WheelConfigurationStore {
 
     static func load(from defaults: UserDefaults) -> WheelConfiguration {
         guard let data = defaults.data(forKey: TalosPreferenceKey.wheelConfiguration) else {
-            let configuration = WheelConfiguration(items: [.action("talos.system.settings")])
+            let configuration = WheelConfiguration(items: ["talos-actions.crop", "talos-actions.archive", "talos-actions.compress", "talos-actions.convert", "talos.system.settings"].map { .action($0) })
             save(configuration, to: defaults)
             return configuration
         }

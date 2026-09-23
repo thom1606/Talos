@@ -1,4 +1,6 @@
 import XCTest
+import AppKit
+import AVFoundation
 
 /// Runs the shipping screens with real mouse/keyboard input. No app model imports or mocked views.
 @MainActor
@@ -12,6 +14,7 @@ final class TalosFlows: XCTestCase {
         app.launchEnvironment["TALOS_UI_TEST_RUN"] = UUID().uuidString
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
+        app.activate()
     }
 
     override func tearDownWithError() throws {
@@ -43,8 +46,8 @@ final class TalosFlows: XCTestCase {
         app.activate()
         XCTAssertFalse(app.buttons["onboarding.next"].exists)
         let wheel = app.descendants(matching: .any)["wheel.preview"].firstMatch
-        XCTAssertEqual(wheel.buttons.count, 1)
-        XCTAssertTrue(wheel.buttons["Settings"].exists)
+        XCTAssertEqual(wheel.buttons.count, 5)
+        for title in ["Crop", "Archive", "Compress", "Convert", "Settings"] { XCTAssertTrue(wheel.buttons[title].exists) }
     }
 
     func testSettingsNavigationAndSoundPreferencePersist() {
@@ -175,6 +178,142 @@ final class TalosFlows: XCTestCase {
         app.buttons["Cancel"].click()
         XCTAssertTrue(app.buttons["Work tools"].exists)
         XCTAssertFalse(app.buttons["Discard this"].exists)
+    }
+
+    func testBuiltInCropExportsSelectedDimensions() throws {
+        let directory = try mediaFixture("crop")
+        finishOnboarding(openSettings: false)
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -105))
+        let window = app.windows["Crop"]
+        XCTAssertTrue(window.waitForExistence(timeout: 15), "A single Finder drop must open Crop")
+        let width = window.textFields["Width"]
+        XCTAssertTrue(width.waitForExistence(timeout: 15))
+        replaceText(width, with: "160")
+        width.typeKey(.tab, modifierFlags: [])
+        let height = window.textFields["Height"]
+        replaceText(height, with: "120")
+        height.typeKey(.tab, modifierFlags: [])
+        let input = directory.appendingPathComponent("sample.png")
+        let original = try Data(contentsOf: input)
+        window.buttons["Apply"].click()
+        let output = directory.appendingPathComponent("sample-cropped.png")
+        waitForFile(output)
+        XCTAssertFalse(window.sheets.firstMatch.exists)
+        let result = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: output)))
+        XCTAssertEqual(result.pixelsWide, 160)
+        XCTAssertEqual(result.pixelsHigh, 120)
+        window.buttons["Apply"].click()
+        let second = directory.appendingPathComponent("sample-cropped-2.png")
+        waitForFile(second)
+        XCTAssertEqual(try Data(contentsOf: output), try Data(contentsOf: second))
+        XCTAssertEqual(try Data(contentsOf: input), original)
+    }
+
+    func testBuiltInConvertUsesWheelSubmenu() throws {
+        let directory = try mediaFixture("convert")
+        finishOnboarding(openSettings: false)
+        // Hover Convert to enter its submenu, then release over TIFF in the child wheel.
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: -60, dy: 85))
+        let output = directory.appendingPathComponent("sample-converted.tiff")
+        waitForFile(output)
+        XCTAssertFalse(app.windows["Convert"].exists)
+        let result = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: output)))
+        XCTAssertEqual(result.pixelsWide, 320)
+        XCTAssertEqual(result.pixelsHigh, 240)
+    }
+
+    func testBuiltInCompressionPreservesPixels() throws {
+        let directory = try mediaFixture("compress")
+        finishOnboarding(openSettings: false)
+        let input = directory.appendingPathComponent("sample.png")
+        dropOnWheel(file: input, offset: CGVector(dx: 62, dy: 85))
+        let output = directory.appendingPathComponent("sample-compressed.png")
+        waitForFile(output)
+        let originalData = try Data(contentsOf: input), outputData = try Data(contentsOf: output)
+        XCTAssertLessThan(outputData.count, originalData.count)
+        let original = try XCTUnwrap(NSBitmapImageRep(data: originalData))
+        let compressed = try XCTUnwrap(NSBitmapImageRep(data: outputData))
+        XCTAssertEqual(compressed.pixelsWide, original.pixelsWide)
+        XCTAssertEqual(compressed.pixelsHigh, original.pixelsHigh)
+        for y in 0..<original.pixelsHigh {
+            for x in 0..<original.pixelsWide { XCTAssertEqual(original.colorAt(x: x, y: y), compressed.colorAt(x: x, y: y)) }
+        }
+    }
+
+    func testBuiltInVideoCropPreviewsAndExports() async throws {
+        let directory = try mediaFixture("video")
+        let input = directory.appendingPathComponent("sample.mp4")
+        finishOnboarding(openSettings: false)
+        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105))
+        let window = app.windows["Crop"]
+        XCTAssertTrue(window.waitForExistence(timeout: 15))
+        let preview = window.buttons["Play / pause preview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 15), "Local video metadata must load without copying all bytes through JSON")
+        preview.click()
+        let width = window.textFields["Width"], height = window.textFields["Height"]
+        replaceText(width, with: "160"); width.typeKey(.tab, modifierFlags: [])
+        replaceText(height, with: "120"); height.typeKey(.tab, modifierFlags: [])
+        window.buttons["Apply"].click()
+        let output = directory.appendingPathComponent("sample-cropped.mp4")
+        let exists = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in FileManager.default.fileExists(atPath: output.path) }, object: nil)
+        await fulfillment(of: [exists], timeout: 30)
+        let tracks = try await AVURLAsset(url: output).loadTracks(withMediaType: .video)
+        let track = try XCTUnwrap(tracks.first)
+        let size = try await track.load(.naturalSize)
+        XCTAssertEqual(size.width, 160); XCTAssertEqual(size.height, 120)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: input.path))
+    }
+
+    func testBuiltInArchiveIncludesEntireSelection() throws {
+        let directory = try mediaFixture("archive")
+        finishOnboarding(openSettings: false)
+        // Mixed image/text selection leaves Archive and Settings: Archive is the top segment.
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -105), includingFile: "notes.txt")
+        let output = directory.appendingPathComponent("Archive.zip")
+        waitForFile(output)
+        for name in ["sample.png", "notes.txt"] {
+            let process = Process(), pipe = Pipe()
+            process.executableURL = URL(filePath: "/usr/bin/unzip")
+            process.arguments = ["-p", output.path, name]
+            process.standardOutput = pipe
+            try process.run()
+            let archived = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            XCTAssertEqual(process.terminationStatus, 0)
+            XCTAssertEqual(archived, try Data(contentsOf: directory.appendingPathComponent(name)))
+        }
+    }
+
+    private func mediaFixture(_ name: String) throws -> URL {
+        let directory = Bundle.main.bundleURL.deletingLastPathComponent()
+            .appendingPathComponent("TalosUITestFixtures/\(name)", isDirectory: true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("sample.png").path))
+        return directory
+    }
+
+    private func waitForFile(_ url: URL) {
+        let exists = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in FileManager.default.fileExists(atPath: url.path) }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [exists], timeout: 20), .completed, "Missing output: \(url.lastPathComponent)")
+    }
+
+    private func dropOnWheel(file: URL, offset: CGVector, includingFile: String? = nil) {
+        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
+        finder.activate()
+        finder.typeKey("g", modifierFlags: [.command, .shift])
+        let path = finder.sheets["GoToWindow"].textFields["PathTextField"]
+        XCTAssertTrue(path.waitForExistence(timeout: 5))
+        replaceText(path, with: file.deletingLastPathComponent().path)
+        finder.typeKey(.return, modifierFlags: [])
+        finder.typeKey("1", modifierFlags: .command)
+        let source = finder.windows.firstMatch.images[file.lastPathComponent].firstMatch
+        XCTAssertTrue(source.waitForExistence(timeout: 5))
+        // Start unselected: Shift-clicking an already selected Finder icon deselects it.
+        finder.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.8)).click()
+        if let includingFile { finder.windows.firstMatch.images[includingFile].firstMatch.click() }
+        let point = source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        XCUIElement.perform(withKeyModifiers: .shift) {
+            point.click(forDuration: 0.2, thenDragTo: point.withOffset(offset), withVelocity: XCUIGestureVelocity(rawValue: 40), thenHoldForDuration: 1.2)
+        }
     }
 
     private func finishOnboarding(openSettings: Bool = true) {

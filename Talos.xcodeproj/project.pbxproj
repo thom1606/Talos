@@ -117,7 +117,7 @@
 		E2E000000000000000000001 /* TalosUITests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E2E000000000000000000007;
-			buildPhases = (E2E000000000000000000004, E2E000000000000000000006, E2E000000000000000000005);
+			buildPhases = (E2E000000000000000000004, E2E000000000000000000006, E2E000000000000000000005, E2E00000000000000000000C);
 			buildRules = ();
 			dependencies = (E2E00000000000000000000A);
 			fileSystemSynchronizedGroups = (E2E000000000000000000003);
@@ -150,6 +150,9 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				nl,
+				fr,
+				es,
 				Base,
 			);
 			mainGroup = 84E196BD30610D2C008E80BF;
@@ -184,6 +187,18 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		E2E00000000000000000000C /* Prepare UI Media Fixtures */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ();
+			name = "Prepare UI Media Fixtures";
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "bash \"$SRCROOT/scripts/prepare-ui-fixtures.sh\"";
+		};
 		E50000000000000000000001 /* Embed JavaScript Runtime */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -201,7 +216,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "bash \"$SRCROOT/scripts/embed-node.sh\"";
+			shellScript = "bash \"$SRCROOT/scripts/embed-node.sh\"\nbash \"$SRCROOT/scripts/embed-extensions.sh\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -350,7 +365,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U6WA8YA735;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
@@ -387,7 +402,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U6WA8YA735;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
@@ -420,6 +435,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = U6WA8YA735;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thom1606.Talos.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -433,6 +449,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = U6WA8YA735;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thom1606.Talos.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";

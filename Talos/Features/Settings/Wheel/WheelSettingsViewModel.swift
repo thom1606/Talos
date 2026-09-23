@@ -90,7 +90,7 @@ final class WheelSettingsViewModel {
     }
 
     func addFolder() {
-        addToWheel(.folder("Folder"))
+        addToWheel(.folder(String(localized: "Folder")))
     }
 
     func addTile(_ tile: WheelTilePresentation) {
@@ -208,7 +208,7 @@ final class WheelSettingsViewModel {
         let entry: WheelItem
         switch source {
         case .folder:
-            entry = .folder("Folder")
+            entry = .folder(String(localized: "Folder"))
         case let .tile(id):
             guard let tile = availableTiles.first(where: { $0.id == id }) else { return }
             selectSupportedContext(for: tile)

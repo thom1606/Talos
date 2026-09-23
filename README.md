@@ -48,99 +48,35 @@ Repositories.
 The **Import .talos…** menu item is currently a placeholder. Use a linked local
 project or GitHub repository to load extensions in this version.
 
-## Build and run the app
-
-The current project targets **macOS 27** and uses **Xcode 27**.
-
-1. Open `Talos.xcodeproj` in Xcode.
-2. Select the **Talos** scheme and **My Mac** destination.
-3. Select your development team in Signing & Capabilities for the app and UI
-   test targets if the checked-in signing team is unavailable.
-4. Press **⌘R** to build and run.
-
-Xcode resolves the Swift package dependencies. The build also downloads,
-verifies and embeds its pinned Node.js runtime using
-[`scripts/embed-node.sh`](scripts/embed-node.sh). The first build needs internet
-access; people running the built app do not need to install Node.js themselves.
-
-To build from the command line:
-
-```sh
-xcodebuild build \
-  -project Talos.xcodeproj \
-  -scheme Talos \
-  -configuration Debug \
-  -destination 'platform=macOS'
-```
-
-## App flow tests
-
-Press **⌘U** with the Talos scheme selected. The XCUITest suite launches the
-real app and exercises onboarding, settings persistence, the GitHub form,
-local repository linking/removal, and wheel drag-and-drop and editing.
-
-Tests use isolated preferences and extension storage. See
-[TESTING.md](TESTING.md) for commands, desktop requirements, result bundles and
-the flows that are not covered yet.
-
-## Project layout
-
-| Path | Contents |
-| --- | --- |
-| `Talos/TalosApp.swift` | App lifecycle and window scenes |
-| `Talos/Features/` | Wheel, settings, onboarding, extension windows and notifications |
-| `Talos/Core/SDKRuntime/` | Extension loading, Node.js host and app bridge |
-| `Talos/Core/Repositories/` | Local projects, GitHub releases and update checks |
-| `Talos/Core/Preferences/` | App preferences and saved wheel configuration |
-| `TalosUITests/` | XCTest flows through the real app |
-| `Configuration/` | App and embedded runtime entitlements |
-| `scripts/` | Build-time runtime packaging |
-
-Extension console output is forwarded to macOS unified logging. In Console,
-filter on subsystem `com.thom1606.Talos` and category `Extensions` to follow
-extension logs during development.
-
-## GitHub builds
-
-Pushes to `main` run the XCUITest flows on the `xcode-27` runner. After tests
-pass, CI creates a Developer ID-signed, notarized app and uploads `Talos.zip`,
-`Talos.dmg` and their checksums as a GitHub Actions artifact. Pull requests run
-the tests without access to signing credentials.
-
-The signing job uses the existing `DEVELOPER_ID_CERT_P12`,
-`DEVELOPER_ID_CERT_PASSWORD`, `ASC_API_KEY_P8`, `ASC_API_KEY_ID` and
-`ASC_API_ISSUER_ID` repository secrets. Version tags additionally publish a
-GitHub Release and signed Sparkle feed, as described below.
-
-The SDK has its own repository and npm publishing workflow:
-[thom1606/talos-sdk](https://github.com/thom1606/talos-sdk).
-
 ## App releases
 
-App updates are published only from stable version tags such as `v1.0.0`.
-Pushes to `main` build and test the app without publishing an update.
+App updates are published from `release/production`. Pushes to `main` build
+and test the app without publishing an update. Set `MARKETING_VERSION` in the
+Xcode project to the next version before updating the release branch.
 
-To publish the next version, tag the intended commit and push that tag:
+To publish the next version, push the intended commit to the release branch:
 
 ```sh
-git tag -a v1.0.1 -m 'Talos 1.0.1'
-git push origin v1.0.1
+git push origin HEAD:release/production
 ```
 
 CI runs the app flows, archives and exports a Developer ID build, notarizes it,
-and publishes a GitHub Release containing `Talos.dmg`, `Talos.zip`, checksums,
-and the signed Sparkle `appcast.xml`. The tag sets the app version; the CI run
-number provides the increasing build number. Existing published versions
-cannot be overwritten.
+and publishes a GitHub Release containing only `Talos.dmg` and `Talos.zip`.
+It creates a version tag as a checkpoint; the release branch push starts the
+build. The Xcode project sets the app version, and the CI run number provides
+the increasing build number. Existing published versions cannot be overwritten.
 
 The app reads updates from
-[the appcast](https://thom1606.github.io/Talos/appcast.xml). The Pages workflow
-publishes the feed from the latest GitHub Release and verifies that the update
-can be downloaded without authentication.
+[the appcast](https://thom1606.github.io/Talos/appcast.xml). After publishing
+the release, CI commits the signed feed and
+[SHA-256 checksums](https://thom1606.github.io/Talos/SHA256SUMS) to `docs/` on
+`release/production`. The Pages workflow deploys these files after the release
+build succeeds and verifies that the update can be downloaded publicly.
 
 For the initial public launch, make the repository public and select
 **Settings → Pages → Build and deployment → Source: GitHub Actions**. Run
-**Publish appcast to GitHub Pages** once. Later releases deploy automatically.
+**Publish appcast to GitHub Pages** once after a successful release build.
+Later releases deploy automatically.
 GitHub Free does not host Pages for this repository while it is private.
 
 Signing uses the existing Apple signing/notarization secrets and

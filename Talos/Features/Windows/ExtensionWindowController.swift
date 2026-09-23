@@ -29,7 +29,7 @@ final class ExtensionWindowController: NSObject, NSWindowDelegate {
         preparedPage = prepared
     }
 
-    func show(_ request: TalosWindowRequest, resources: TalosWindowResources) throws {
+    func show(_ request: TalosWindowRequest, resources: TalosWindowResources, runtime: SDKRuntime) throws {
         let startedAt = ContinuousClock.now
         let width = min(1_200, max(320, request.width ?? 480))
         let height = min(900, max(180, request.height ?? 320))
@@ -61,12 +61,16 @@ final class ExtensionWindowController: NSObject, NSWindowDelegate {
             preparedPage = nil
             let documentURL = PreparedWindowPage.documentURL
             let bridge = ExtensionWindowBridge(window: window, pageURL: documentURL,
-                                               inputFiles: resources.inputFiles, extensionID: request.extensionID)
+                                               inputFiles: resources.inputFiles, extensionID: request.extensionID, runtime: runtime, request: request)
             windowBridge = bridge
             let bootstrap = try bridge.bootstrap(dataJSON: request.dataJSON, contextJSON: request.contextJSON)
             prepared.assets.directory = pageURL.deletingLastPathComponent()
+            prepared.assets.inputs = resources.inputFiles
             prepared.scripts.addScriptMessageHandler(bridge, contentWorld: .page, name: "talosWindow")
             prepared.scripts.addUserScript(bootstrap)
+            if request.page == "talos-react" {
+                prepared.scripts.addUserScript(Self.reactWindowLayout)
+            }
             scripts = prepared.scripts
             let browser = prepared.page
             let navigation = browser.load(documentURL)
@@ -114,6 +118,47 @@ final class ExtensionWindowController: NSObject, NSWindowDelegate {
         // Refill with a fresh data store, never a page that ran another extension.
         if !isClosingAll, windows.isEmpty, entry.webPage != nil { prepare() }
     }
+
+    /// Apply the same layout to every React window, including extensions built with older SDKs.
+    /// Keeping it in the Talos layer lets an extension's own CSS override these defaults.
+    private static let reactWindowLayout = WKUserScript(source: """
+    (() => {
+        const css = `@layer talos {
+            html, body, #root {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                background: transparent;
+            }
+            main {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+            footer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                min-height: 54px;
+                padding: 12px 16px;
+                border-top: 1px solid var(--talos-separator);
+                background: light-dark(#ffffff25, #ffffff03);
+            }
+        }`;
+        const install = () => {
+            if (!document.head) return false;
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.prepend(style);
+            return true;
+        };
+        if (!install()) {
+            const observer = new MutationObserver(() => { if (install()) observer.disconnect(); });
+            observer.observe(document, { childList: true, subtree: true });
+        }
+    })();
+    """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
 }
 
 @MainActor
@@ -190,23 +235,90 @@ private struct ExtensionWindowNavigation: WebPage.NavigationDeciding {
     }
 }
 
-/// Serve only the assets in this window's bundle, without granting WebKit filesystem access.
+/// The URL contains only an index into this window's activation, never a filesystem path.
 @MainActor
 private final class ExtensionWindowAssets: URLSchemeHandler {
     var directory: URL?
+    var inputs: [URL] = []
     func reply(for request: URLRequest) -> AsyncThrowingStream<URLSchemeTaskResult, Error> {
-        AsyncThrowingStream { continuation in
-            do {
-                guard let directory, let url = request.url, url.host == "bundle" else { throw URLError(.badURL) }
-                let root = directory.resolvingSymlinksInPath()
-                let file = root.appendingPathComponent(url.path).resolvingSymlinksInPath()
-                guard file.path.hasPrefix(root.path + "/") else { throw URLError(.noPermissionsToReadFile) }
-                let data = try Data(contentsOf: file)
-                let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-                continuation.yield(.response(URLResponse(url: url, mimeType: mime, expectedContentLength: data.count, textEncodingName: "utf-8")))
-                continuation.yield(.data(data))
-                continuation.finish()
-            } catch { continuation.finish(throwing: error) }
+        let source = WindowResourceStream(request: request, directory: directory, inputs: inputs)
+        return AsyncThrowingStream(unfolding: { try await source.next() })
+    }
+}
+
+/// Pull one chunk at a time off the main actor. Seeking a video never buffers the whole file.
+private actor WindowResourceStream {
+    let request: URLRequest
+    let directory: URL?
+    let inputs: [URL]
+    private var handle: FileHandle?
+    private var scopedURL: URL?
+    private var remaining = 0
+    private var opened = false
+    init(request: URLRequest, directory: URL?, inputs: [URL]) {
+        self.request = request; self.directory = directory; self.inputs = inputs
+    }
+    func next() throws -> URLSchemeTaskResult? {
+        do {
+            try Task.checkCancellation()
+            if !opened { opened = true; return try open() }
+            guard remaining > 0, let handle else { close(); return nil }
+            guard let data = try handle.read(upToCount: min(262_144, remaining)), !data.isEmpty else {
+                throw URLError(.cannotDecodeContentData)
+            }
+            remaining -= data.count
+            return .data(data)
+        } catch { close(); throw error }
+    }
+    private func open() throws -> URLSchemeTaskResult {
+        guard let url = request.url, url.host == "bundle" else { throw URLError(.badURL) }
+        let file: URL
+        if url.path.hasPrefix("/__talos_input/") {
+            guard let index = Int(url.lastPathComponent), inputs.indices.contains(index),
+                  url.path == "/__talos_input/\(index)" else { throw URLError(.noPermissionsToReadFile) }
+            file = inputs[index]
+        } else {
+            guard let directory else { throw URLError(.badURL) }
+            let root = directory.resolvingSymlinksInPath()
+            file = root.appendingPathComponent(url.path).resolvingSymlinksInPath()
+            guard file.path.hasPrefix(root.path + "/") else { throw URLError(.noPermissionsToReadFile) }
         }
+        if file.startAccessingSecurityScopedResource() { scopedURL = file }
+        let values = try file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+        guard values.isRegularFile == true, let size = values.fileSize else { throw URLError(.cannotOpenFile) }
+        let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        var start = 0, end = max(0, size - 1), partial = false
+        if let range = request.value(forHTTPHeaderField: "Range") {
+            guard range.hasPrefix("bytes="), !range.contains(",") else { throw URLError(.badURL) }
+            let parts = range.dropFirst(6).split(separator: "-", omittingEmptySubsequences: false)
+            guard parts.count == 2 else { throw URLError(.badURL) }
+            if parts[0].isEmpty, let suffix = Int(parts[1]), suffix > 0 { start = max(0, size - suffix) }
+            else {
+                guard let offset = Int(parts[0]), offset >= 0 else { throw URLError(.badURL) }
+                start = offset
+                if !parts[1].isEmpty {
+                    guard let last = Int(parts[1]) else { throw URLError(.badURL) }
+                    end = min(end, last)
+                }
+            }
+            guard start < size, end >= start else { throw URLError(.badURL) }
+            partial = true
+        }
+        remaining = size == 0 ? 0 : end - start + 1
+        var headers = ["Content-Type": mime, "Content-Length": String(remaining), "Accept-Ranges": "bytes"]
+        if partial { headers["Content-Range"] = "bytes \(start)-\(end)/\(size)" }
+        guard let response = HTTPURLResponse(url: url, statusCode: partial ? 206 : 200,
+                                            httpVersion: "HTTP/1.1", headerFields: headers) else { throw URLError(.badURL) }
+        handle = try FileHandle(forReadingFrom: file)
+        try handle?.seek(toOffset: UInt64(start))
+        return .response(response)
+    }
+    private func close() {
+        try? handle?.close(); handle = nil
+        scopedURL?.stopAccessingSecurityScopedResource(); scopedURL = nil
+    }
+    deinit {
+        try? handle?.close()
+        scopedURL?.stopAccessingSecurityScopedResource()
     }
 }

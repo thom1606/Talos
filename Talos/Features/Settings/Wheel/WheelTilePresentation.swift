@@ -13,13 +13,13 @@ enum WheelPreviewContext: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .folder:
-            "Folder"
+            String(localized: "Folder")
         case .image:
-            "Image"
+            String(localized: "Image")
         case .video:
-            "Video"
+            String(localized: "Video")
         case .audio:
-            "Audio"
+            String(localized: "Audio")
         case .pdf:
             "PDF"
         }
@@ -75,7 +75,7 @@ extension WheelTilePresentation {
         id: "talos.system.settings",
         extensionBundleID: "talos.system",
         action: "open-settings",
-        title: "Settings",
+        title: String(localized: "Settings"),
         extensionName: "Talos",
         symbolName: "gearshape",
         supportedContexts: Set(WheelPreviewContext.allCases)

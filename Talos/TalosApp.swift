@@ -215,6 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 let extensions = await runtime.loadedExtensions()
                 actionLibrary.update(extensions: extensions)
+                repositoriesModel.updateBundledExtensions(extensions)
                 wheelController.start()
                 if extensions.contains(where: {
                     FileManager.default.fileExists(atPath: $0.directory.appendingPathComponent("windows").path)
@@ -260,8 +261,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task {
                 do {
                     let resources = try await sdkRuntime.windowResources(for: request)
-                    try extensionWindowController.show(request, resources: resources)
+                    try extensionWindowController.show(request, resources: resources, runtime: sdkRuntime)
                 } catch {
+                    await sdkRuntime.closeWindow(request)
                     toastController.show(.init(message: error.localizedDescription, kind: .failure))
                 }
             }
@@ -274,6 +276,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     NSLog("Cannot answer Talos extension dialog: %@", error.localizedDescription)
                 }
             }
+        case let .sessionStopped(extensionID, sessionID):
+            Task { await sdkRuntime.sessionStopped(extensionID: extensionID, sessionID: sessionID) }
+        case let .windowReply(reply):
+            Task { await sdkRuntime.completeWindowRequest(reply) }
         case .console:
             break // Console output is handled directly on the pipe's callback queue.
         }

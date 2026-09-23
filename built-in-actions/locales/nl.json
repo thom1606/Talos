@@ -1,0 +1,103 @@
+{
+  "displayName": "Talos",
+  "commands": {
+    "crop": {
+      "displayName": "Bijsnijden",
+      "description": "Snijd een afbeelding of video bij."
+    },
+    "archive": {
+      "displayName": "Archiveren",
+      "description": "Maak een ZIP-archief van de geselecteerde bestanden."
+    },
+    "compress": {
+      "displayName": "Comprimeren",
+      "description": "Verklein bestanden zonder beeld- of audio-/videogegevens te verliezen."
+    },
+    "convert": {
+      "displayName": "Converteren",
+      "description": "Converteer een selectie afbeeldingen, video’s of audiobestanden."
+    },
+    "convert-png": {
+      "displayName": "PNG",
+      "description": "Converteer geselecteerde bestanden naar PNG."
+    },
+    "convert-jpg": {
+      "displayName": "JPG",
+      "description": "Converteer geselecteerde bestanden naar JPG."
+    },
+    "convert-tiff": {
+      "displayName": "TIFF",
+      "description": "Converteer geselecteerde bestanden naar TIFF."
+    },
+    "convert-bmp": {
+      "displayName": "BMP",
+      "description": "Converteer geselecteerde bestanden naar BMP."
+    },
+    "convert-mp4": {
+      "displayName": "MP4",
+      "description": "Converteer geselecteerde bestanden naar MP4."
+    },
+    "convert-mov": {
+      "displayName": "MOV",
+      "description": "Converteer geselecteerde bestanden naar MOV."
+    },
+    "convert-m4a": {
+      "displayName": "M4A",
+      "description": "Converteer geselecteerde bestanden naar M4A."
+    },
+    "convert-wav": {
+      "displayName": "WAV",
+      "description": "Converteer geselecteerde bestanden naar WAV."
+    },
+    "convert-flac": {
+      "displayName": "FLAC",
+      "description": "Converteer geselecteerde bestanden naar FLAC."
+    }
+  },
+  "crop": {
+    "title": "Bijsnijden",
+    "free": "Vrij",
+    "choosePrompt": "Geen afbeelding geselecteerd",
+    "chooseImage": "Kies afbeelding…",
+    "selectionHelp": "Bijsnijdselectie. Gebruik pijltjestoetsen om te verplaatsen; Shift voor tien pixels.",
+    "opening": "Afbeelding openen…",
+    "emptyTitle": "Je afbeelding, precies het deel dat je wilt.",
+    "options": "Bijsnijdopties",
+    "aspectRatio": "Beeldverhouding",
+    "width": "Bijsnijdbreedte",
+    "height": "Bijsnijdhoogte",
+    "widthShort": "Breedte",
+    "heightShort": "Hoogte",
+    "pixels": "px",
+    "original": "{width} × {height} origineel · Sleep de randen om bij te snijden",
+    "formats": "PNG-invoer blijft PNG; andere afbeeldingen worden als JPEG opgeslagen.",
+    "reset": "Herstellen",
+    "working": "Bezig…",
+    "saveCopy": "Toepassen",
+    "saved": "{name} opgeslagen",
+    "cannotCreate": "Kan de bijgesneden afbeelding niet maken",
+    "noInput": "Sleep een afbeelding naar deze actie om die bij te snijden.",
+    "tooLarge": "Afbeeldingen mogen maximaal 40 megapixels en 16.000 pixels per zijde hebben",
+    "videoUnsupported": "Video bijsnijden ondersteunt MP4, MOV en M4V. Converteer andere formaten eerst.",
+    "videoHint": "Slaat een bijgesneden kopie op in dezelfde container. Video wordt opnieuw gecodeerd; audio blijft behouden.",
+    "play": "Voorbeeld afspelen / pauzeren",
+    "videoError": "Deze video kan niet worden getoond. Probeer eerst naar MP4 te converteren."
+  },
+  "actions": {
+    "noFiles": "Selecteer bestanden voor deze actie."
+  },
+  "archive": {
+    "working": "Archief maken…",
+    "done": "Archief naast je bestanden opgeslagen."
+  },
+  "compress": {
+    "working": "Bestand {current} van {total} comprimeren…",
+    "done": "{count} bestanden gecomprimeerd; {size} bespaard. {skipped} ongewijzigd.",
+    "unchanged": "Een kleinere verliesvrije kopie was niet mogelijk. De originele bestanden zijn ongewijzigd.",
+    "partial": "{reduced} gecomprimeerd; {skipped} ongewijzigd; {failed} mislukt. De originele bestanden zijn ongewijzigd."
+  },
+  "convert": {
+    "working": "Converteren…",
+    "done": "{count} geconverteerde kopieën naast de originele bestanden opgeslagen."
+  }
+}

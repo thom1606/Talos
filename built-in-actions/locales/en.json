@@ -1,0 +1,103 @@
+{
+  "displayName": "Talos",
+  "commands": {
+    "crop": {
+      "displayName": "Crop",
+      "description": "Crop an image or video."
+    },
+    "archive": {
+      "displayName": "Archive",
+      "description": "Create a ZIP archive of the selected files."
+    },
+    "compress": {
+      "displayName": "Compress",
+      "description": "Reduce file size without losing image or audio/video data."
+    },
+    "convert": {
+      "displayName": "Convert",
+      "description": "Convert a selection of images, videos, or audio files."
+    },
+    "convert-png": {
+      "displayName": "PNG",
+      "description": "Convert selected files to PNG."
+    },
+    "convert-jpg": {
+      "displayName": "JPG",
+      "description": "Convert selected files to JPG."
+    },
+    "convert-tiff": {
+      "displayName": "TIFF",
+      "description": "Convert selected files to TIFF."
+    },
+    "convert-bmp": {
+      "displayName": "BMP",
+      "description": "Convert selected files to BMP."
+    },
+    "convert-mp4": {
+      "displayName": "MP4",
+      "description": "Convert selected files to MP4."
+    },
+    "convert-mov": {
+      "displayName": "MOV",
+      "description": "Convert selected files to MOV."
+    },
+    "convert-m4a": {
+      "displayName": "M4A",
+      "description": "Convert selected files to M4A."
+    },
+    "convert-wav": {
+      "displayName": "WAV",
+      "description": "Convert selected files to WAV."
+    },
+    "convert-flac": {
+      "displayName": "FLAC",
+      "description": "Convert selected files to FLAC."
+    }
+  },
+  "crop": {
+    "title": "Crop",
+    "free": "Free",
+    "choosePrompt": "No image selected",
+    "chooseImage": "Choose image\u2026",
+    "selectionHelp": "Crop selection. Use arrow keys to move; Shift for ten pixels.",
+    "opening": "Opening image\u2026",
+    "emptyTitle": "Your image, just the part you want.",
+    "options": "Crop options",
+    "aspectRatio": "Aspect ratio",
+    "width": "Crop width",
+    "height": "Crop height",
+    "widthShort": "Width",
+    "heightShort": "Height",
+    "pixels": "px",
+    "original": "{width} \u00d7 {height} original \u00b7 Drag the edges to crop",
+    "formats": "PNG inputs stay PNG; other images are saved as JPEG.",
+    "reset": "Reset",
+    "working": "Working\u2026",
+    "saveCopy": "Apply",
+    "saved": "Saved {name}",
+    "cannotCreate": "Cannot create the cropped image",
+    "noInput": "Drop an image onto this action to crop it.",
+    "tooLarge": "Images must be at most 40 megapixels and 16,000 pixels per side",
+    "videoUnsupported": "Video cropping supports MP4, MOV and M4V. Convert other formats first.",
+    "videoHint": "Saves a cropped copy in the same container. Video is re-encoded; audio is preserved.",
+    "play": "Play / pause preview",
+    "videoError": "This video cannot be previewed. Try converting it to MP4 first."
+  },
+  "actions": {
+    "noFiles": "Select files to use this action."
+  },
+  "archive": {
+    "working": "Creating archive\u2026",
+    "done": "Archive saved beside your files."
+  },
+  "compress": {
+    "working": "Compressing {current} of {total}\u2026",
+    "done": "Compressed {count} files; saved {size}. {skipped} unchanged.",
+    "unchanged": "No smaller lossless copy was possible. Originals are unchanged.",
+    "partial": "Compressed {reduced}; {skipped} unchanged; {failed} failed. Originals are unchanged."
+  },
+  "convert": {
+    "working": "Converting\u2026",
+    "done": "Saved {count} converted copies beside the originals."
+  }
+}

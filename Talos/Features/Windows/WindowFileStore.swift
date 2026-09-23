@@ -6,7 +6,7 @@ nonisolated enum WindowFileError: LocalizedError {
     var errorDescription: String? { if case let .invalid(message) = self { message } else { nil } }
 }
 
-/// Type-agnostic I/O, scoped to this window's inputs and a user-approved save destination.
+/// Type-agnostic I/O, scoped to this window's inputs and their folders.
 actor WindowFileStore {
     static let chunkSize = 1_024 * 1_024
     struct Info: Sendable {
@@ -16,11 +16,11 @@ actor WindowFileStore {
     }
     private struct Save {
         let id: String
-        let destination: URL
         let directory: URL
         let temporaryFile: URL
         let handle: FileHandle
-        let scoped: Bool
+        let suggestedName: String
+        let inputDirectory: URL
         let size: Int
         var written = 0
     }
@@ -59,13 +59,15 @@ actor WindowFileStore {
         return bytes.base64EncodedString()
     }
 
-    func beginSave(to destination: URL, size: Int) throws -> String {
+    func beginSave(inputIndex: Int, suggestedName: String, size: Int) throws -> String {
         guard save == nil, size >= 0 else { throw WindowFileError.invalid("A save is already in progress or has an invalid size") }
-        let scoped = destination.startAccessingSecurityScopedResource()
+        guard !suggestedName.isEmpty, suggestedName == (suggestedName as NSString).lastPathComponent,
+              suggestedName != ".", suggestedName != ".." else { throw WindowFileError.invalid("Invalid output filename") }
+        let inputDirectory = try input(inputIndex).deletingLastPathComponent()
         var directory: URL?
         do {
-            let folder = try FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask,
-                                                      appropriateFor: destination, create: true)
+            let folder = inputDirectory.appendingPathComponent(".talos-\(UUID().uuidString)", isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
             directory = folder
             let temporaryFile = folder.appendingPathComponent("output")
             guard FileManager.default.createFile(atPath: temporaryFile.path, contents: nil) else {
@@ -73,12 +75,11 @@ actor WindowFileStore {
             }
             let handle = try FileHandle(forWritingTo: temporaryFile)
             let id = UUID().uuidString
-            save = Save(id: id, destination: destination, directory: folder, temporaryFile: temporaryFile,
-                        handle: handle, scoped: scoped, size: size)
+            save = Save(id: id, directory: folder, temporaryFile: temporaryFile,
+                        handle: handle, suggestedName: suggestedName, inputDirectory: inputDirectory, size: size)
             return id
         } catch {
             if let directory { try? FileManager.default.removeItem(at: directory) }
-            if scoped { destination.stopAccessingSecurityScopedResource() }
             throw error
         }
     }
@@ -102,12 +103,16 @@ actor WindowFileStore {
         defer { cancel(id: id) }
         try current.handle.synchronize()
         try current.handle.close()
-        if FileManager.default.fileExists(atPath: current.destination.path) {
-            _ = try FileManager.default.replaceItemAt(current.destination, withItemAt: current.temporaryFile)
-        } else {
-            try FileManager.default.moveItem(at: current.temporaryFile, to: current.destination)
+        let name = current.suggestedName as NSString
+        let ext = name.pathExtension
+        let stem = name.deletingPathExtension
+        for number in 1...10_000 {
+            let filename = number == 1 ? current.suggestedName : "\(stem)-\(number)\(ext.isEmpty ? "" : ".\(ext)")"
+            let destination = current.inputDirectory.appendingPathComponent(filename)
+            if link(current.temporaryFile.path, destination.path) == 0 { return filename }
+            if errno != EEXIST { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         }
-        return current.destination.lastPathComponent
+        throw WindowFileError.invalid("Could not find an available output filename")
     }
 
     func cancel(id: String? = nil) {
@@ -115,7 +120,6 @@ actor WindowFileStore {
         save = nil
         try? current.handle.close()
         try? FileManager.default.removeItem(at: current.directory)
-        if current.scoped { current.destination.stopAccessingSecurityScopedResource() }
     }
 
     private func input(_ index: Int) throws -> URL {

@@ -49,6 +49,23 @@ nonisolated struct ExtensionManifest: Codable, Sendable, Equatable, Identifiable
                 throw SDKRuntimeError.invalidManifest("Invalid or duplicate action: \(command.name)")
             }
         }
+        func visit(_ command: ExtensionCommand, ancestors: Set<String>) throws {
+            guard !ancestors.contains(command.name), ancestors.count < 8 else {
+                throw SDKRuntimeError.invalidManifest("Subcommands contain a cycle or exceed eight levels")
+            }
+            if let children = command.subcommands {
+                guard !children.isEmpty, Set(children).count == children.count else {
+                    throw SDKRuntimeError.invalidManifest("Subcommands must contain unique command names")
+                }
+                for name in children {
+                    guard let child = commands.first(where: { $0.name == name }) else {
+                        throw SDKRuntimeError.invalidManifest("Unknown subcommand: \(name)")
+                    }
+                    try visit(child, ancestors: ancestors.union([command.name]))
+                }
+            }
+        }
+        for command in commands { try visit(command, ancestors: []) }
     }
 
     private static func isBundleID(_ value: String) -> Bool {
@@ -80,6 +97,7 @@ nonisolated struct ExtensionCommand: Codable, Sendable, Equatable, Identifiable 
     let description: String?
     let supportedFileTypes: [String]
     let settings: [ExtensionSetting]?
+    var subcommands: [String]? = nil
 
     var id: String { name }
 }
@@ -108,6 +126,7 @@ nonisolated struct LoadedExtension: Identifiable, Sendable, Equatable {
     let manifest: ExtensionManifest
     let directory: URL
     let entrypoint: URL
+    var isBundled = false
 
     var id: String { manifest.id }
 }

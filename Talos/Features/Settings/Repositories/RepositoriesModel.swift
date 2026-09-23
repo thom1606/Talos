@@ -66,6 +66,15 @@ final class RepositoriesModel {
         }
     }
 
+    private var bundledTiles: [WheelTilePresentation] = []
+    func updateBundledExtensions(_ extensions: [LoadedExtension]) {
+        bundledTiles = extensions.filter(\.isBundled).flatMap { loaded in
+            guard let package = try? LocalProjectPackage.read(from: loaded.directory) else { return [WheelTilePresentation]() }
+            return package.wheelTiles(extensionName: package.displayName(in: loaded.directory))
+        }
+        reloadPresentations(preservingOperations: true)
+    }
+
     private func reloadPresentations(preservingOperations: Bool = false) {
         let operations = preservingOperations ? repositories.filter { $0.status.isProgressing } : []
         updateMonitor.reconcile()
@@ -152,7 +161,8 @@ final class RepositoriesModel {
             $0.name.localizedStandardCompare($1.name) == .orderedAscending
         }
         for operation in operations { setStatus(operation.status, for: operation.id) }
-        tiles = availableTiles.sorted {
+        let existing = Set(availableTiles.map(\.id))
+        tiles = (availableTiles + bundledTiles.filter { !existing.contains($0.id) }).sorted {
             $0.title.localizedStandardCompare($1.title) == .orderedAscending
         }
 

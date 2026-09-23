@@ -81,9 +81,11 @@ struct RuntimeWheelView: View {
     private var centerContent: some View {
         VStack(spacing: 5) {
             if let hoveredAction = model.hoveredAction {
-                Image(systemName: hoveredAction.symbolName)
-                    .font(.system(size: 17, weight: .medium))
-                    .frame(width: 24, height: 24)
+                if !hoveredAction.symbolName.isEmpty {
+                    Image(systemName: hoveredAction.symbolName)
+                        .font(.system(size: 17, weight: .medium))
+                        .frame(width: 24, height: 24)
+                }
 
                 Text(hoveredAction.title.uppercased())
                     .font(.system(size: 9, weight: .semibold))

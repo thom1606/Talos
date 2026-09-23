@@ -51,9 +51,9 @@ private enum SettingsPage: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .wheel: "Wheel"
-        case .repositories: "Repositories"
-        case .advanced: "Advanced"
+        case .wheel: String(localized: "Wheel")
+        case .repositories: String(localized: "Repositories")
+        case .advanced: String(localized: "Advanced")
         }
     }
 

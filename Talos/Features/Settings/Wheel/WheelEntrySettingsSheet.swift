@@ -17,7 +17,7 @@ struct WheelEntrySettingsSheet: View {
         self.tile = tile
         self.onSave = onSave
         // A sheet edits a draft; changes reach the configuration only on Save.
-        _name = State(initialValue: entry.customTitle ?? tile?.title ?? "Folder")
+        _name = State(initialValue: entry.customTitle ?? tile?.title ?? String(localized: "Folder"))
     }
 
     private var trimmedName: String {

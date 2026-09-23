@@ -1,0 +1,103 @@
+{
+  "displayName": "Talos",
+  "commands": {
+    "crop": {
+      "displayName": "Recortar",
+      "description": "Recorta una imagen o un vídeo."
+    },
+    "archive": {
+      "displayName": "Archivar",
+      "description": "Crea un archivo ZIP de los archivos seleccionados."
+    },
+    "compress": {
+      "displayName": "Comprimir",
+      "description": "Reduce el tamaño sin perder datos de imagen, audio o vídeo."
+    },
+    "convert": {
+      "displayName": "Convertir",
+      "description": "Convierte una selección de imágenes, vídeos o archivos de audio."
+    },
+    "convert-png": {
+      "displayName": "PNG",
+      "description": "Convierte los archivos seleccionados a PNG."
+    },
+    "convert-jpg": {
+      "displayName": "JPG",
+      "description": "Convierte los archivos seleccionados a JPG."
+    },
+    "convert-tiff": {
+      "displayName": "TIFF",
+      "description": "Convierte los archivos seleccionados a TIFF."
+    },
+    "convert-bmp": {
+      "displayName": "BMP",
+      "description": "Convierte los archivos seleccionados a BMP."
+    },
+    "convert-mp4": {
+      "displayName": "MP4",
+      "description": "Convierte los archivos seleccionados a MP4."
+    },
+    "convert-mov": {
+      "displayName": "MOV",
+      "description": "Convierte los archivos seleccionados a MOV."
+    },
+    "convert-m4a": {
+      "displayName": "M4A",
+      "description": "Convierte los archivos seleccionados a M4A."
+    },
+    "convert-wav": {
+      "displayName": "WAV",
+      "description": "Convierte los archivos seleccionados a WAV."
+    },
+    "convert-flac": {
+      "displayName": "FLAC",
+      "description": "Convierte los archivos seleccionados a FLAC."
+    }
+  },
+  "crop": {
+    "title": "Recortar",
+    "free": "Libre",
+    "choosePrompt": "Ninguna imagen seleccionada",
+    "chooseImage": "Elegir imagen…",
+    "selectionHelp": "Área de recorte. Usa las flechas para moverla; Mayús para diez píxeles.",
+    "opening": "Abriendo imagen…",
+    "emptyTitle": "Tu imagen, solo la parte que quieres.",
+    "options": "Opciones de recorte",
+    "aspectRatio": "Relación de aspecto",
+    "width": "Anchura del recorte",
+    "height": "Altura del recorte",
+    "widthShort": "Anchura",
+    "heightShort": "Altura",
+    "pixels": "px",
+    "original": "Original {width} × {height} · Arrastra los bordes para recortar",
+    "formats": "Las entradas PNG siguen siendo PNG; las demás imágenes se guardan como JPEG.",
+    "reset": "Restablecer",
+    "working": "Procesando…",
+    "saveCopy": "Aplicar",
+    "saved": "{name} guardado",
+    "cannotCreate": "No se puede crear la imagen recortada",
+    "noInput": "Suelta una imagen en esta acción para recortarla.",
+    "tooLarge": "Las imágenes deben tener como máximo 40 megapíxeles y 16 000 píxeles por lado",
+    "videoUnsupported": "El recorte de vídeo admite MP4, MOV y M4V. Convierte antes otros formatos.",
+    "videoHint": "Guarda una copia recortada en el mismo contenedor. El vídeo se vuelve a codificar; se conserva el audio.",
+    "play": "Reproducir / pausar vista previa",
+    "videoError": "No se puede previsualizar este vídeo. Prueba a convertirlo a MP4."
+  },
+  "actions": {
+    "noFiles": "Selecciona archivos para esta acción."
+  },
+  "archive": {
+    "working": "Creando archivo…",
+    "done": "Archivo guardado junto a tus archivos."
+  },
+  "compress": {
+    "working": "Comprimiendo {current} de {total}…",
+    "done": "{count} archivos comprimidos; {size} ahorrados. {skipped} sin cambios.",
+    "unchanged": "No se pudo crear una copia sin pérdida más pequeña. Los originales siguen igual.",
+    "partial": "{reduced} comprimidos; {skipped} sin cambios; {failed} fallidos. Los originales siguen igual."
+  },
+  "convert": {
+    "working": "Convirtiendo…",
+    "done": "{count} copias convertidas guardadas junto a los originales."
+  }
+}

@@ -1,9 +1,11 @@
 import Foundation
+import CryptoKit
 
 /// Owns loaded extension metadata and the long-lived Node processes used to run it.
 actor SDKRuntime {
     private let nodeExecutable: URL
     private let runner: URL
+    private let bundledDirectory: URL?
     private let eventHandler: @Sendable (SDKRuntimeEvent) -> Void
     private var extensions: [String: LoadedExtension] = [:]
     private var sessions: [String: ExtensionSession] = [:]
@@ -12,6 +14,7 @@ actor SDKRuntime {
         hostBundle: Bundle = .main,
         eventHandler: @escaping @Sendable (SDKRuntimeEvent) -> Void = { _ in }
     ) {
+        bundledDirectory = hostBundle.resourceURL?.appendingPathComponent("BundledExtensions", isDirectory: true)
         nodeExecutable = Self.resolveNodeExecutable(in: hostBundle)
         runner = hostBundle.url(
             forResource: "SDKRunner",
@@ -57,6 +60,30 @@ actor SDKRuntime {
                 loaded[extensionPackage.id] = extensionPackage
             } catch {
                 failures.append(.init(directory: candidate, message: error.localizedDescription))
+            }
+        }
+
+        // App-owned packages have a separate versioned cache: remote installs cannot replace them.
+        if let bundledDirectory, fileManager.fileExists(atPath: bundledDirectory.path) {
+            for archive in try fileManager.contentsOfDirectory(at: bundledDirectory, includingPropertiesForKeys: nil)
+                .filter({ $0.pathExtension == "talos" }).sorted(by: { $0.path < $1.path }) {
+                do {
+                    let data = try Data(contentsOf: archive)
+                    let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                    let cache = directory.deletingLastPathComponent().appendingPathComponent("BundledExtensions/" + digest)
+                    let marker = cache.appendingPathComponent(".ready")
+                    if !fileManager.fileExists(atPath: marker.path) {
+                        let installer = TalosPackageInstaller(root: cache)
+                        let package = try installer.stage(data, digest: "sha256:" + digest)
+                        try installer.commit(package, replacing: package.manifest.id)
+                        try Data(package.manifest.id.utf8).write(to: marker, options: .atomic)
+                    }
+                    let id = try String(contentsOf: marker, encoding: .utf8)
+                    guard Self.isIdentifier(id) else { throw SDKRuntimeError.invalidManifest("Invalid bundled package ID") }
+                    var package = try Self.loadExtension(from: cache.appendingPathComponent(id))
+                    package.isBundled = true
+                    loaded[package.id] = package
+                } catch { failures.append(.init(directory: archive, message: error.localizedDescription)) }
             }
         }
 
@@ -156,6 +183,69 @@ actor SDKRuntime {
         return .init(pageURL: pageURL, inputFiles: files)
     }
 
+    private struct PendingWindowRequest {
+        let window: TalosWindowRequest
+        let continuation: CheckedContinuation<String, Error>
+        let timeout: Task<Void, Never>
+    }
+    private var pendingWindowRequests: [String: PendingWindowRequest] = [:]
+
+    func invokeWindow(_ window: TalosWindowRequest, method: String, payloadJSON: String) async throws -> String {
+        guard let session = sessions[window.extensionID], session.id == window.sessionID,
+              let windowID = window.windowID, session.isRunning else { throw SDKRuntimeError.extensionProcessStopped }
+        guard payloadJSON.utf8.count <= 32_768, method.count <= 128 else { throw SDKRuntimeError.contextTooLarge }
+        guard pendingWindowRequests.values.filter({ $0.window.windowID == windowID && $0.window.sessionID == window.sessionID }).count < 16 else {
+            throw WindowFileError.invalid("Too many pending window requests")
+        }
+        let id = UUID().uuidString
+        return try await withCheckedThrowingContinuation { continuation in
+            let timeout = Task {
+                do { try await Task.sleep(for: .seconds(1800)) } catch { return }
+                self.cancelWindowRequest(id, message: "The extension request timed out")
+            }
+            pendingWindowRequests[id] = .init(window: window, continuation: continuation, timeout: timeout)
+            do {
+                try session.sendWindowCommand(.init(type: "windowRequest", requestID: id, windowID: windowID,
+                                                    method: method, payloadJSON: payloadJSON))
+            } catch {
+                pendingWindowRequests.removeValue(forKey: id)?.continuation.resume(throwing: error)
+                timeout.cancel()
+            }
+        }
+    }
+
+    func sessionStopped(extensionID: String, sessionID: UUID) {
+        for (id, pending) in pendingWindowRequests where pending.window.extensionID == extensionID && pending.window.sessionID == sessionID {
+            cancelWindowRequest(id, message: "The extension process stopped")
+        }
+    }
+
+    func completeWindowRequest(_ reply: TalosWindowReply) {
+        guard let pending = pendingWindowRequests[reply.requestID],
+              pending.window.extensionID == reply.extensionID, pending.window.sessionID == reply.sessionID else { return }
+        pendingWindowRequests[reply.requestID] = nil
+        pending.timeout.cancel()
+        if let error = reply.error { pending.continuation.resume(throwing: WindowFileError.invalid(error)) }
+        else if let json = reply.resultJSON, json.utf8.count <= 32_768 { pending.continuation.resume(returning: json) }
+        else { pending.continuation.resume(throwing: SDKRuntimeError.contextTooLarge) }
+    }
+
+    private func cancelWindowRequest(_ id: String, message: String) {
+        guard let pending = pendingWindowRequests.removeValue(forKey: id) else { return }
+        pending.timeout.cancel()
+        if let session = sessions[pending.window.extensionID], session.id == pending.window.sessionID {
+            try? session.sendWindowCommand(.init(type: "cancelWindowRequest", requestID: id))
+        }
+        pending.continuation.resume(throwing: WindowFileError.invalid(message))
+    }
+
+    func closeWindow(_ window: TalosWindowRequest) {
+        for (id, pending) in pendingWindowRequests where pending.window.windowID == window.windowID
+            && pending.window.sessionID == window.sessionID { cancelWindowRequest(id, message: "Window closed") }
+        guard let session = sessions[window.extensionID], session.id == window.sessionID else { return }
+        try? session.sendWindowCommand(.init(type: "windowClosed", windowID: window.windowID))
+    }
+
     func respond(to request: TalosDialogRequest, with value: Bool) throws {
         guard let session = sessions[request.extensionID] else {
             throw SDKRuntimeError.extensionNotLoaded(request.extensionID)
@@ -167,11 +257,15 @@ actor SDKRuntime {
     }
 
     func unloadExtension(bundleID: String) {
+        for (id, pending) in pendingWindowRequests where pending.window.extensionID == bundleID {
+            cancelWindowRequest(id, message: "Extension unloaded")
+        }
         sessions.removeValue(forKey: bundleID)?.deactivate()
         extensions[bundleID] = nil
     }
 
     func deactivateAll() {
+        for id in Array(pendingWindowRequests.keys) { cancelWindowRequest(id, message: "Extensions reloaded") }
         for session in sessions.values {
             session.deactivate()
         }
@@ -405,6 +499,7 @@ nonisolated private final class ExtensionSession {
         process.standardInput = inputPipe
         process.standardOutput = outputPipe
         process.standardError = errorPipe
+        process.terminationHandler = { _ in eventHandler(.sessionStopped(extensionID: loadedExtension.id, sessionID: sessionID)) }
 
         outputPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
@@ -476,6 +571,14 @@ nonisolated private final class ExtensionSession {
         }
     }
 
+    func sendWindowCommand(_ command: WindowRuntimeCommand) throws {
+        guard process.isRunning else { throw SDKRuntimeError.extensionProcessStopped }
+        var data = try encoder.encode(command)
+        guard data.count <= 65_536 else { throw SDKRuntimeError.contextTooLarge }
+        data.append(0x0A)
+        try input.write(contentsOf: data)
+    }
+
     private func send(_ command: RuntimeCommand) throws {
         var data = try encoder.encode(command)
         data.append(0x0A)
@@ -497,6 +600,8 @@ nonisolated enum SDKRuntimeEvent: Sendable, Equatable {
     case openWindow(TalosWindowRequest)
     case dialog(TalosDialogRequest)
     case console(ExtensionLogMessage)
+    case windowReply(TalosWindowReply)
+    case sessionStopped(extensionID: String, sessionID: UUID)
 }
 
 nonisolated struct TalosDialogRequest: Sendable, Equatable {
@@ -524,6 +629,21 @@ nonisolated struct TalosToastRequest: Sendable, Equatable {
     }
 }
 
+nonisolated struct WindowRuntimeCommand: Encodable {
+    let type: String
+    var requestID: String? = nil
+    var windowID: String? = nil
+    var method: String? = nil
+    var payloadJSON: String? = nil
+}
+nonisolated struct TalosWindowReply: Sendable, Equatable {
+    let extensionID: String
+    let sessionID: UUID
+    let requestID: String
+    let resultJSON: String?
+    let error: String?
+}
+
 nonisolated struct TalosWindowRequest: Sendable, Equatable {
     let title: String
     let content: String
@@ -535,6 +655,7 @@ nonisolated struct TalosWindowRequest: Sendable, Equatable {
     var filePaths: [String] = []
     var extensionID: String = ""
     var sessionID: UUID = UUID()
+    var windowID: String? = nil
 }
 
 nonisolated struct TalosWindowResources: Sendable {
@@ -635,6 +756,10 @@ nonisolated final class RuntimeOutputReader: @unchecked Sendable {
             return .toast(.init(message: text, kind: kind))
         case "done":
             return .dismissToast
+        case "windowReply":
+            guard let id = message.requestID else { return console("Missing window request ID", level: .warn) }
+            return .windowReply(.init(extensionID: extensionID, sessionID: sessionID, requestID: id,
+                                      resultJSON: message.parameters.resultJSON, error: message.parameters.error))
         case "openWindow":
             guard
                 let title = message.parameters.title,
@@ -654,7 +779,8 @@ nonisolated final class RuntimeOutputReader: @unchecked Sendable {
                     contextJSON: message.parameters.contextJSON,
                     filePaths: message.parameters.filePaths ?? [],
                     extensionID: extensionID,
-                    sessionID: sessionID
+                    sessionID: sessionID,
+                    windowID: message.parameters.windowID
                 )
             )
         case "dialog":
@@ -712,6 +838,9 @@ nonisolated private struct RuntimeOutputMessage: Decodable {
         let title: String?
         let content: String?
         let page: String?
+        let windowID: String?
+        let resultJSON: String?
+        let error: String?
         let dataJSON: String?
         let contextJSON: String?
         let filePaths: [String]?

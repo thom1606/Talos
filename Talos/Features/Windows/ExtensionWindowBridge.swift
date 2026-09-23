@@ -2,7 +2,7 @@ import AppKit
 import UniformTypeIdentifiers
 import WebKit
 
-/// Generic file access for activation inputs and user-approved output destinations.
+/// Generic file access for activation inputs and output beside the selected input.
 @MainActor
 final class ExtensionWindowBridge: NSObject, WKScriptMessageHandlerWithReply {
     private weak var window: NSWindow?
@@ -10,9 +10,13 @@ final class ExtensionWindowBridge: NSObject, WKScriptMessageHandlerWithReply {
     private let files: WindowFileStore
     private var closed = false
     private let extensionID: String
-    private var presentingSheet = false
+    private var saveInputIndex = 0
+    private let runtime: SDKRuntime
+    private let request: TalosWindowRequest
 
-    init(window: NSWindow, pageURL: URL, inputFiles: [URL], extensionID: String) {
+    init(window: NSWindow, pageURL: URL, inputFiles: [URL], extensionID: String, runtime: SDKRuntime, request: TalosWindowRequest) {
+        self.runtime = runtime
+        self.request = request
         self.window = window
         self.pageURL = pageURL
         files = WindowFileStore(inputs: inputFiles)
@@ -92,6 +96,13 @@ final class ExtensionWindowBridge: NSObject, WKScriptMessageHandlerWithReply {
     private func handle(_ method: String, body: [String: Any]) async throws -> Any {
         guard !closed, let window, window.isVisible else { throw WindowFileError.invalid("Window is closed") }
         switch method {
+        case "invoke":
+            guard let method = body["name"] as? String, let payload = body["payloadJSON"] as? String else {
+                throw WindowFileError.invalid("Invalid extension request")
+            }
+            let json = try await runtime.invokeWindow(request, method: method, payloadJSON: payload)
+            guard !closed else { throw WindowFileError.invalid("Window closed") }
+            return try JSONSerialization.jsonObject(with: Data(json.utf8), options: .fragmentsAllowed)
         case "colors":
             return colors()
         case "console":
@@ -113,24 +124,16 @@ final class ExtensionWindowBridge: NSObject, WKScriptMessageHandlerWithReply {
             }
             return try await files.read(index: index, offset: offset, length: length, size: size)
         case "beginSave":
-            guard !presentingSheet else { throw WindowFileError.invalid("A file sheet is already open") }
-            presentingSheet = true
-            defer { presentingSheet = false }
             guard let size = body["size"] as? Int, size >= 0,
                   let name = body["suggestedName"] as? String, !name.isEmpty else {
                 throw WindowFileError.invalid("Missing output filename or size")
             }
-            let panel = NSSavePanel()
-            panel.canCreateDirectories = true
-            panel.nameFieldStringValue = String((name as NSString).lastPathComponent.prefix(180))
-            if let mime = body["type"] as? String, let type = UTType(mimeType: mime), type != .data {
-                panel.allowedContentTypes = [type]
-                panel.allowsOtherFileTypes = true
-            }
-            let response = await panel.beginSheetModal(for: window)
-            guard response == .OK, let url = panel.url else { return NSNull() }
-            guard !closed, window.isVisible else { throw WindowFileError.invalid("Window is closed") }
-            return try await files.beginSave(to: url, size: size)
+            return try await files.beginSave(inputIndex: saveInputIndex, suggestedName: name, size: size)
+        case "setSaveInput":
+            guard let index = body["index"] as? Int else { throw WindowFileError.invalid("Missing input file") }
+            _ = try await files.info(index: index)
+            saveInputIndex = index
+            return NSNull()
         case "writeFile":
             guard let id = body["id"] as? String, let offset = body["offset"] as? Int,
                   let bytes = body["bytes"] as? String else { throw WindowFileError.invalid("Invalid save chunk") }
@@ -164,6 +167,6 @@ final class ExtensionWindowBridge: NSObject, WKScriptMessageHandlerWithReply {
 
     func close() {
         closed = true
-        Task { await files.cancel() }
+        Task { await runtime.closeWindow(request); await files.cancel() }
     }
 }

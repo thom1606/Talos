@@ -1,0 +1,103 @@
+{
+  "displayName": "Talos",
+  "commands": {
+    "crop": {
+      "displayName": "Recadrer",
+      "description": "Recadrer une image ou une vidéo."
+    },
+    "archive": {
+      "displayName": "Archiver",
+      "description": "Créer une archive ZIP des fichiers sélectionnés."
+    },
+    "compress": {
+      "displayName": "Compresser",
+      "description": "Réduire la taille des fichiers sans perdre les données image, audio ou vidéo."
+    },
+    "convert": {
+      "displayName": "Convertir",
+      "description": "Convertir une sélection d’images, de vidéos ou de fichiers audio."
+    },
+    "convert-png": {
+      "displayName": "PNG",
+      "description": "Convertir les fichiers sélectionnés en PNG."
+    },
+    "convert-jpg": {
+      "displayName": "JPG",
+      "description": "Convertir les fichiers sélectionnés en JPG."
+    },
+    "convert-tiff": {
+      "displayName": "TIFF",
+      "description": "Convertir les fichiers sélectionnés en TIFF."
+    },
+    "convert-bmp": {
+      "displayName": "BMP",
+      "description": "Convertir les fichiers sélectionnés en BMP."
+    },
+    "convert-mp4": {
+      "displayName": "MP4",
+      "description": "Convertir les fichiers sélectionnés en MP4."
+    },
+    "convert-mov": {
+      "displayName": "MOV",
+      "description": "Convertir les fichiers sélectionnés en MOV."
+    },
+    "convert-m4a": {
+      "displayName": "M4A",
+      "description": "Convertir les fichiers sélectionnés en M4A."
+    },
+    "convert-wav": {
+      "displayName": "WAV",
+      "description": "Convertir les fichiers sélectionnés en WAV."
+    },
+    "convert-flac": {
+      "displayName": "FLAC",
+      "description": "Convertir les fichiers sélectionnés en FLAC."
+    }
+  },
+  "crop": {
+    "title": "Recadrer",
+    "free": "Libre",
+    "choosePrompt": "Aucune image sélectionnée",
+    "chooseImage": "Choisir une image…",
+    "selectionHelp": "Zone de recadrage. Utilisez les flèches pour la déplacer ; Maj pour dix pixels.",
+    "opening": "Ouverture de l’image…",
+    "emptyTitle": "Votre image, uniquement la partie voulue.",
+    "options": "Options de recadrage",
+    "aspectRatio": "Rapport d’aspect",
+    "width": "Largeur du recadrage",
+    "height": "Hauteur du recadrage",
+    "widthShort": "Largeur",
+    "heightShort": "Hauteur",
+    "pixels": "px",
+    "original": "Original {width} × {height} · Faites glisser les bords pour recadrer",
+    "formats": "Les fichiers PNG restent en PNG ; les autres images sont enregistrées en JPEG.",
+    "reset": "Réinitialiser",
+    "working": "Traitement…",
+    "saveCopy": "Appliquer",
+    "saved": "{name} enregistré",
+    "cannotCreate": "Impossible de créer l’image recadrée",
+    "noInput": "Déposez une image sur cette action pour la recadrer.",
+    "tooLarge": "Les images sont limitées à 40 mégapixels et 16 000 pixels par côté",
+    "videoUnsupported": "Le recadrage vidéo accepte MP4, MOV et M4V. Convertissez d’abord les autres formats.",
+    "videoHint": "Enregistre une copie recadrée dans le même conteneur. La vidéo est réencodée ; l’audio est conservé.",
+    "play": "Lire / mettre en pause l’aperçu",
+    "videoError": "Impossible de prévisualiser cette vidéo. Essayez d’abord de la convertir en MP4."
+  },
+  "actions": {
+    "noFiles": "Sélectionnez des fichiers pour cette action."
+  },
+  "archive": {
+    "working": "Création de l’archive…",
+    "done": "Archive enregistrée à côté de vos fichiers."
+  },
+  "compress": {
+    "working": "Compression de {current} sur {total}…",
+    "done": "{count} fichiers compressés ; {size} économisés. {skipped} inchangés.",
+    "unchanged": "Aucune copie sans perte plus petite n’était possible. Les originaux sont inchangés.",
+    "partial": "{reduced} compressés ; {skipped} inchangés ; {failed} échecs. Les originaux sont inchangés."
+  },
+  "convert": {
+    "working": "Conversion…",
+    "done": "{count} copies converties enregistrées à côté des originaux."
+  }
+}

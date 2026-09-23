@@ -18,7 +18,7 @@ jobs:
       !github.event.repository.private &&
       (github.event_name != 'workflow_run' ||
        (github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event != 'pull_request' &&
+        github.event.workflow_run.head_branch == 'release/production' &&
         github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -27,21 +27,30 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
-      - name: Prepare site from latest published release
+        with:
+          ref: release/production
+      - name: Prepare site from release branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p _site
-          cp docs/index.html _site/index.html
+          cp docs/index.html docs/appcast.xml docs/SHA256SUMS _site/
           touch _site/.nojekyll
-          gh release download --pattern appcast.xml --dir _site
           python3 <<'PYTHON'
-          import os, urllib.request, xml.etree.ElementTree as ET
+          import os, re, urllib.request, xml.etree.ElementTree as ET
           feed = ET.parse('_site/appcast.xml')
           enclosure = feed.find('./channel/item/enclosure')
-          assert enclosure is not None, 'The published release has no update entry'
+          assert enclosure is not None, 'The release branch has no update entry'
           url = enclosure.attrib['url']
           assert url.startswith(f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/")
+          checksums = open('_site/SHA256SUMS', encoding='utf-8').read().splitlines()
+          assert len(checksums) == 2, 'Expected checksums for the ZIP and DMG'
+          names = set()
+          for line in checksums:
+              match = re.fullmatch(r'[0-9a-f]{64}  (Talos\.zip|Talos\.dmg)', line)
+              assert match, f'Invalid checksum line: {line}'
+              names.add(match[1])
+          assert names == {'Talos.zip', 'Talos.dmg'}
           request = urllib.request.Request(url, method='HEAD')
           with urllib.request.urlopen(request) as response:
               assert response.status == 200, 'The update must be downloadable without authentication'
@@ -68,3 +77,6 @@ jobs:
           curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors \
             "${PAGE_URL}appcast.xml?run=${GITHUB_RUN_ID}" --output /tmp/appcast.xml
           cmp _site/appcast.xml /tmp/appcast.xml
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors \
+            "${PAGE_URL}SHA256SUMS?run=${GITHUB_RUN_ID}" --output /tmp/SHA256SUMS
+          cmp _site/SHA256SUMS /tmp/SHA256SUMS

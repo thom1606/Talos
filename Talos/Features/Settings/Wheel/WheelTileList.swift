@@ -19,7 +19,7 @@ struct WheelTileList: View {
                     .padding(.vertical, 10)
 
                 WheelPaletteRow(
-                    title: "Folder",
+                    title: String(localized: "Folder"),
                     subtitle: "Talos",
                     symbolName: "folder"
                 )

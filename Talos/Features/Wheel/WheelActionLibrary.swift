@@ -73,7 +73,7 @@ final class WheelActionLibrary {
             guard children.isEmpty || !matchingChildren.isEmpty else { return nil }
             return WheelAction(
                 id: item.id,
-                title: displayTitle(for: item, fallback: "Folder"),
+                title: displayTitle(for: item, fallback: String(localized: "Folder")),
                 symbolName: "folder",
                 destination: .folder(matchingChildren)
             )
@@ -83,7 +83,7 @@ final class WheelActionLibrary {
         if actionID == "talos.system.settings" {
             return WheelAction(
                 id: item.id,
-                title: displayTitle(for: item, fallback: "Settings"),
+                title: displayTitle(for: item, fallback: String(localized: "Settings")),
                 symbolName: "gearshape",
                 destination: .settings
             )
@@ -93,17 +93,24 @@ final class WheelActionLibrary {
             return nil
         }
 
-        return WheelAction(
-            id: item.id,
-            title: displayTitle(for: item, fallback: command.displayName),
-            symbolName: resolvedSymbolName(command.icon),
-            destination: .extensionAction(
-                Tile(
-                    extensionBundleID: loadedExtension.id,
-                    action: command.name
-                )
-            )
-        )
+        return extensionAction(command, in: loadedExtension, id: item.id,
+                               title: displayTitle(for: item, fallback: command.displayName), files: files)
+    }
+
+    private func extensionAction(_ command: ExtensionCommand, in loaded: LoadedExtension,
+                                 id: UUID, title: String? = nil, files: [DraggedFile]) -> WheelAction? {
+        guard command.supports(files) else { return nil }
+        if let names = command.subcommands {
+            let children = names.compactMap { name -> WheelAction? in
+                guard let child = loaded.manifest.commands.first(where: { $0.name == name }) else { return nil }
+                return extensionAction(child, in: loaded, id: UUID(), files: files)
+            }
+            guard !children.isEmpty else { return nil }
+            return WheelAction(id: id, title: title ?? command.displayName, symbolName: resolvedSymbolName(command.icon),
+                               destination: .folder(children))
+        }
+        return WheelAction(id: id, title: title ?? command.displayName, symbolName: resolvedSymbolName(command.icon),
+                           destination: .extensionAction(Tile(extensionBundleID: loaded.id, action: command.name)))
     }
 
     private func displayTitle(for item: WheelItem, fallback: String) -> String {
@@ -116,11 +123,8 @@ final class WheelActionLibrary {
     }
 
     private func resolvedSymbolName(_ name: String?) -> String {
-        guard
-            let name,
-            !name.isEmpty,
-            NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil
-        else {
+        guard let name, !name.isEmpty else { return "" }
+        guard NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil else {
             return "questionmark"
         }
         return name

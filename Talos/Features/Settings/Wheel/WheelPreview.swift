@@ -204,8 +204,8 @@ private struct WheelPreviewTile: View {
         .accessibilityLabel(title)
         .accessibilityHint(
             entry.isFolder
-                ? "Press to edit. Press and hold to open."
-                : "Press to edit settings."
+                ? String(localized: "Press to edit. Press and hold to open.")
+                : String(localized: "Press to edit settings.")
         )
         .contextMenu {
             Button("Remove from wheel", systemImage: "minus.circle", action: onRemove)

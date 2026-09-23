@@ -24,6 +24,7 @@ struct LocalProjectPackage: Decodable {
         let displayName: String
         let icon: String?
         let supportedFileTypes: [String]
+        let subcommands: [String]?
     }
 
     static func read(from projectURL: URL) throws -> Self {
@@ -54,7 +55,8 @@ struct LocalProjectPackage: Decodable {
     }
 
     func wheelTiles(extensionName: String) -> [WheelTilePresentation] {
-        commands.map { command in
+        let children = Set(commands.flatMap { $0.subcommands ?? [] })
+        return commands.filter { !children.contains($0.name) }.map { command in
             WheelTilePresentation(
                 id: "\(talos.bundleID).\(command.name)",
                 extensionBundleID: talos.bundleID,

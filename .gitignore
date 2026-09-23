@@ -52,3 +52,8 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/
 fastlane/test_output/
+
+# Extension build inputs and generated archives
+built-in-actions/node_modules/
+built-in-actions/dist/
+built-in-actions/vendor/

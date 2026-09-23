@@ -1,0 +1,158 @@
+{
+  "name": "talos-actions",
+  "version": "1.0.0",
+  "description": "The standard file actions shipped with Talos.",
+  "type": "module",
+  "scripts": {
+    "build": "talos build",
+    "typecheck": "tsc --noEmit",
+    "package": "bash scripts/build-tools.sh && talos build && node scripts/package.mjs"
+  },
+  "devDependencies": {
+    "@thom1606/talos-sdk": "3.2.0",
+    "@types/node": "24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.3.0"
+  },
+  "talos": {
+    "bundleId": "talos-actions",
+    "entry": "src/index.tsx",
+    "locales": {
+      "en": "locales/en.json",
+      "nl": "locales/nl.json",
+      "fr": "locales/fr.json",
+      "es": "locales/es.json"
+    }
+  },
+  "commands": [
+    {
+      "name": "crop",
+      "displayName": "Crop",
+      "icon": "crop",
+      "description": "Crop an image or video.",
+      "supportedFileTypes": [
+        "public.image",
+        "public.movie"
+      ]
+    },
+    {
+      "name": "archive",
+      "displayName": "Archive",
+      "icon": "archivebox",
+      "description": "Create a ZIP archive of the selected files.",
+      "supportedFileTypes": [
+        "*"
+      ]
+    },
+    {
+      "name": "compress",
+      "displayName": "Compress",
+      "icon": "arrow.down.right.and.arrow.up.left",
+      "description": "Reduce file size without losing image or audio/video data.",
+      "supportedFileTypes": [
+        "public.image",
+        "public.movie",
+        "public.audio"
+      ]
+    },
+    {
+      "name": "convert",
+      "displayName": "Convert",
+      "icon": "arrow.trianglehead.2.clockwise.rotate.90",
+      "description": "Convert a selection of images, videos, or audio files.",
+      "supportedFileTypes": [
+        "public.image",
+        "public.movie",
+        "public.audio"
+      ],
+      "subcommands": [
+        "convert-png",
+        "convert-jpg",
+        "convert-tiff",
+        "convert-bmp",
+        "convert-mp4",
+        "convert-mov",
+        "convert-m4a",
+        "convert-wav",
+        "convert-flac"
+      ]
+    },
+    {
+      "name": "convert-png",
+      "displayName": "PNG",
+      "description": "Convert selected files to PNG.",
+      "supportedFileTypes": [
+        "public.image"
+      ]
+    },
+    {
+      "name": "convert-jpg",
+      "displayName": "JPG",
+      "description": "Convert selected files to JPG.",
+      "supportedFileTypes": [
+        "public.image"
+      ]
+    },
+    {
+      "name": "convert-tiff",
+      "displayName": "TIFF",
+      "description": "Convert selected files to TIFF.",
+      "supportedFileTypes": [
+        "public.image"
+      ]
+    },
+    {
+      "name": "convert-bmp",
+      "displayName": "BMP",
+      "description": "Convert selected files to BMP.",
+      "supportedFileTypes": [
+        "public.image"
+      ]
+    },
+    {
+      "name": "convert-mp4",
+      "displayName": "MP4",
+      "description": "Convert selected files to MP4.",
+      "supportedFileTypes": [
+        "public.movie"
+      ]
+    },
+    {
+      "name": "convert-mov",
+      "displayName": "MOV",
+      "description": "Convert selected files to MOV.",
+      "supportedFileTypes": [
+        "public.movie"
+      ]
+    },
+    {
+      "name": "convert-m4a",
+      "displayName": "M4A",
+      "description": "Convert selected files to M4A.",
+      "supportedFileTypes": [
+        "public.audio"
+      ]
+    },
+    {
+      "name": "convert-wav",
+      "displayName": "WAV",
+      "description": "Convert selected files to WAV.",
+      "supportedFileTypes": [
+        "public.audio"
+      ]
+    },
+    {
+      "name": "convert-flac",
+      "displayName": "FLAC",
+      "description": "Convert selected files to FLAC.",
+      "supportedFileTypes": [
+        "public.audio"
+      ]
+    }
+  ]
+}
