@@ -5,6 +5,7 @@ import { compress } from './operations/compress';
 import { convert, homogeneous } from './operations/convert';
 import { cropVideo } from './operations/crop-video';
 import { stopOperations } from './operations/shared';
+import { organize } from './operations/organize';
 
 export async function activate(context: TalosContext) {
   try {
@@ -24,6 +25,12 @@ export async function activate(context: TalosContext) {
             return cropVideo(context, payload as Record<string, unknown>, signal);
           } });
         break;
+      case 'organize': {
+        talos.loading(t('organize.sorting'));
+        await organize(context.files, () => talos.loading(t('organize.moving')));
+        talos.success(t('organize.done'));
+        break;
+      }
       case 'archive':
         talos.loading(t('archive.working'));
         await archive(context.files);

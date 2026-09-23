@@ -106,7 +106,7 @@ export default function CropWindow() {
       </select></div>}
     <div className="stage" ref={stage}>
       {image ? <div className="image-frame" style={{ width: image.width * scale, height: image.height * scale }}>
-        {image.video ? <video ref={video} src={image.dataURL} muted loop playsInline preload="auto" aria-label={image.name}
+        {image.video ? <video ref={video} src={image.dataURL} muted loop playsInline preload="metadata" aria-label={image.name}
           onLoadedMetadata={event => setVideoDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
           onLoadedData={event => { if (event.currentTarget.currentTime === 0 && event.currentTarget.duration > 0.01) event.currentTarget.currentTime = 0.01; }}
           onTimeUpdate={event => setVideoTime(event.currentTarget.currentTime)}
@@ -183,7 +183,7 @@ async function loadImage(input: TalosFile): Promise<CropImage> {
   const decoded = new Image(); decoded.src = dataURL;
   await decoded.decode();
   const width = decoded.naturalWidth, height = decoded.naturalHeight;
-  if (!width || !height || width > 16_000 || height > 16_000 || width * height > 40_000_000) throw new Error(t('crop.tooLarge'));
+  if (!width || !height) throw new Error(t('crop.cannotOpen'));
   return { name: input.name, dataURL, width, height, video: false };
 }
 

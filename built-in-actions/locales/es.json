@@ -52,6 +52,10 @@
     "convert-flac": {
       "displayName": "FLAC",
       "description": "Convierte los archivos seleccionados a FLAC."
+    },
+    "organize": {
+      "displayName": "Organizar",
+      "description": "Organiza los elementos seleccionados en carpetas con Apple Intelligence."
     }
   },
   "crop": {
@@ -77,7 +81,7 @@
     "saved": "{name} guardado",
     "cannotCreate": "No se puede crear la imagen recortada",
     "noInput": "Suelta una imagen en esta acción para recortarla.",
-    "tooLarge": "Las imágenes deben tener como máximo 40 megapíxeles y 16 000 píxeles por lado",
+    "cannotOpen": "No se puede abrir esta imagen",
     "videoUnsupported": "El recorte de vídeo admite MP4, MOV y M4V. Convierte antes otros formatos.",
     "videoHint": "Guarda una copia recortada en el mismo contenedor. El vídeo se vuelve a codificar; se conserva el audio.",
     "play": "Reproducir vista previa",
@@ -102,5 +106,10 @@
   "convert": {
     "working": "Convirtiendo…",
     "done": "{count} copias convertidas guardadas junto a los originales."
+  },
+  "organize": {
+    "sorting": "Ordenando internamente…",
+    "moving": "Moviendo elementos…",
+    "done": "Archivos movidos."
   }
 }

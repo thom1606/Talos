@@ -19,6 +19,7 @@
 "Next" = "Next";
 "Action settings" = "Action settings";
 "Name" = "Name";
+"Configuration" = "Configuration";
 "Save" = "Save";
 "Cancel" = "Cancel";
 "Add" = "Add";
@@ -120,3 +121,6 @@
 "Press to edit. Press and hold to open." = "Press to edit. Press and hold to open.";
 "Press to edit settings." = "Press to edit settings.";
 "Repository URL" = "Repository URL";
+
+"Saved in Keychain. Leave empty to keep it." = "Saved in Keychain. Leave empty to keep it.";
+"Couldn't save action" = "Couldn't save action";

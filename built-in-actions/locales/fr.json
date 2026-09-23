@@ -52,6 +52,10 @@
     "convert-flac": {
       "displayName": "FLAC",
       "description": "Convertir les fichiers sélectionnés en FLAC."
+    },
+    "organize": {
+      "displayName": "Organiser",
+      "description": "Organiser les éléments sélectionnés en dossiers avec Apple Intelligence."
     }
   },
   "crop": {
@@ -77,7 +81,7 @@
     "saved": "{name} enregistré",
     "cannotCreate": "Impossible de créer l’image recadrée",
     "noInput": "Déposez une image sur cette action pour la recadrer.",
-    "tooLarge": "Les images sont limitées à 40 mégapixels et 16 000 pixels par côté",
+    "cannotOpen": "Impossible d’ouvrir cette image",
     "videoUnsupported": "Le recadrage vidéo accepte MP4, MOV et M4V. Convertissez d’abord les autres formats.",
     "videoHint": "Enregistre une copie recadrée dans le même conteneur. La vidéo est réencodée ; l’audio est conservé.",
     "play": "Lire l’aperçu",
@@ -102,5 +106,10 @@
   "convert": {
     "working": "Conversion…",
     "done": "{count} copies converties enregistrées à côté des originaux."
+  },
+  "organize": {
+    "sorting": "Tri des éléments…",
+    "moving": "Déplacement des éléments…",
+    "done": "Fichiers déplacés."
   }
 }

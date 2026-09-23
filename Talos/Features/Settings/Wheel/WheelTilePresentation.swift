@@ -50,6 +50,7 @@ struct WheelTilePresentation: Identifiable, Equatable {
     let extensionName: String
     let symbolName: String?
     let supportedContexts: Set<WheelPreviewContext>
+    let settings: [ExtensionSetting]
 
     var helpText: String {
         let details = description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -85,6 +86,7 @@ extension WheelTilePresentation {
         description: nil,
         extensionName: "Talos",
         symbolName: "gearshape",
-        supportedContexts: Set(WheelPreviewContext.allCases)
+        supportedContexts: Set(WheelPreviewContext.allCases),
+        settings: []
     )
 }

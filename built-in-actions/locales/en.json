@@ -52,15 +52,19 @@
     "convert-flac": {
       "displayName": "FLAC",
       "description": "Convert selected files to FLAC."
+    },
+    "organize": {
+      "displayName": "Organize",
+      "description": "Organize selected items into folders with Apple Intelligence."
     }
   },
   "crop": {
     "title": "Crop",
     "free": "Free",
     "choosePrompt": "No image selected",
-    "chooseImage": "Choose image\u2026",
+    "chooseImage": "Choose image…",
     "selectionHelp": "Crop selection. Use arrow keys to move; Shift for ten pixels.",
-    "opening": "Opening image\u2026",
+    "opening": "Opening image…",
     "emptyTitle": "Your image, just the part you want.",
     "options": "Crop options",
     "aspectRatio": "Aspect ratio",
@@ -69,15 +73,15 @@
     "widthShort": "Width",
     "heightShort": "Height",
     "pixels": "px",
-    "original": "{width} \u00d7 {height} original \u00b7 Drag the edges to crop",
+    "original": "{width} × {height} original · Drag the edges to crop",
     "formats": "PNG inputs stay PNG; other images are saved as JPEG.",
     "reset": "Reset",
-    "working": "Working\u2026",
+    "working": "Working…",
     "saveCopy": "Apply",
     "saved": "Saved {name}",
     "cannotCreate": "Cannot create the cropped image",
     "noInput": "Drop an image onto this action to crop it.",
-    "tooLarge": "Images must be at most 40 megapixels and 16,000 pixels per side",
+    "cannotOpen": "Could not open this image",
     "videoUnsupported": "Video cropping supports MP4, MOV and M4V. Convert other formats first.",
     "videoHint": "Saves a cropped copy in the same container. Video is re-encoded; audio is preserved.",
     "play": "Play preview",
@@ -89,18 +93,23 @@
     "noFiles": "Select files to use this action."
   },
   "archive": {
-    "working": "Creating archive\u2026",
+    "working": "Creating archive…",
     "done": "Archive saved beside your files."
   },
   "compress": {
-    "working": "Compressing {current} of {total}\u2026",
+    "working": "Compressing {current} of {total}…",
     "doneOne": "Compressed 1 file · saved {size}",
     "doneMany": "Compressed {count} files · saved {size}",
     "unchanged": "No smaller copy was possible. Originals are unchanged.",
     "partial": "Compressed {reduced}; {skipped} unchanged; {failed} failed. Originals are unchanged."
   },
   "convert": {
-    "working": "Converting\u2026",
+    "working": "Converting…",
     "done": "Saved {count} converted copies beside the originals."
+  },
+  "organize": {
+    "sorting": "Sorting internally…",
+    "moving": "Moving items…",
+    "done": "Files moved."
   }
 }

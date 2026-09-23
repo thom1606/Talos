@@ -19,6 +19,7 @@
 "Next" = "Suivant";
 "Action settings" = "Réglages de l’action";
 "Name" = "Nom";
+"Configuration" = "Configuration";
 "Save" = "Enregistrer";
 "Cancel" = "Annuler";
 "Add" = "Ajouter";
@@ -119,3 +120,6 @@
 "Press to edit. Press and hold to open." = "Appuyez pour modifier. Maintenez pour ouvrir.";
 "Press to edit settings." = "Appuyez pour modifier les réglages.";
 "Repository URL" = "URL du dépôt";
+
+"Saved in Keychain. Leave empty to keep it." = "Enregistré dans le Trousseau. Laissez vide pour le conserver.";
+"Couldn't save action" = "Impossible d’enregistrer l’action";

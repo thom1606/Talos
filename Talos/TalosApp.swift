@@ -285,6 +285,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await sdkRuntime.sessionStopped(extensionID: extensionID, sessionID: sessionID) }
         case let .windowReply(reply):
             Task { await sdkRuntime.completeWindowRequest(reply) }
+        case let .modelRequest(request):
+            Task { await sdkRuntime.startModelRequest(request) }
+        case let .modelCancel(sessionID, requestID):
+            Task { await sdkRuntime.cancelModelRequest(sessionID: sessionID, requestID: requestID) }
+        case let .modelToolReply(reply):
+            Task { await sdkRuntime.completeModelToolRequest(reply) }
         case .console:
             break // Console output is handled directly on the pipe's callback queue.
         }

@@ -19,6 +19,7 @@
 "Next" = "Siguiente";
 "Action settings" = "Ajustes de la acción";
 "Name" = "Nombre";
+"Configuration" = "Configuración";
 "Save" = "Guardar";
 "Cancel" = "Cancelar";
 "Add" = "Añadir";
@@ -119,3 +120,6 @@
 "Press to edit. Press and hold to open." = "Pulsa para editar. Mantén pulsado para abrir.";
 "Press to edit settings." = "Pulsa para editar los ajustes.";
 "Repository URL" = "URL del repositorio";
+
+"Saved in Keychain. Leave empty to keep it." = "Guardado en el Llavero. Déjalo vacío para conservarlo.";
+"Couldn't save action" = "No se pudo guardar la acción";

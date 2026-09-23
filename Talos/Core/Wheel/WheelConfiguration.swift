@@ -18,7 +18,29 @@ nonisolated struct WheelItem: Codable, Identifiable, Sendable, Equatable {
     let id: UUID
     var actionID: String?
     var customTitle: String?
+    var config: [String: TileConfigValue]
     var children: [Self]?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, actionID, customTitle, config, children
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        actionID = try values.decodeIfPresent(String.self, forKey: .actionID)
+        customTitle = try values.decodeIfPresent(String.self, forKey: .customTitle)
+        config = try values.decodeIfPresent([String: TileConfigValue].self, forKey: .config) ?? [:]
+        children = try values.decodeIfPresent([Self].self, forKey: .children)
+    }
+
+    init(id: UUID, actionID: String?, customTitle: String?, config: [String: TileConfigValue], children: [Self]?) {
+        self.id = id
+        self.actionID = actionID
+        self.customTitle = customTitle
+        self.config = config
+        self.children = children
+    }
 
     var isFolder: Bool {
         children != nil
@@ -33,6 +55,7 @@ nonisolated struct WheelItem: Codable, Identifiable, Sendable, Equatable {
             id: id,
             actionID: actionID,
             customTitle: customTitle,
+            config: [:],
             children: nil
         )
     }
@@ -46,6 +69,7 @@ nonisolated struct WheelItem: Codable, Identifiable, Sendable, Equatable {
             id: id,
             actionID: nil,
             customTitle: title,
+            config: [:],
             children: children
         )
     }

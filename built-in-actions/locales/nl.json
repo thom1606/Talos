@@ -52,6 +52,10 @@
     "convert-flac": {
       "displayName": "FLAC",
       "description": "Converteer geselecteerde bestanden naar FLAC."
+    },
+    "organize": {
+      "displayName": "Ordenen",
+      "description": "Orden geselecteerde items in mappen met Apple Intelligence."
     }
   },
   "crop": {
@@ -77,7 +81,7 @@
     "saved": "{name} opgeslagen",
     "cannotCreate": "Kan de bijgesneden afbeelding niet maken",
     "noInput": "Sleep een afbeelding naar deze actie om die bij te snijden.",
-    "tooLarge": "Afbeeldingen mogen maximaal 40 megapixels en 16.000 pixels per zijde hebben",
+    "cannotOpen": "Kan deze afbeelding niet openen",
     "videoUnsupported": "Video bijsnijden ondersteunt MP4, MOV en M4V. Converteer andere formaten eerst.",
     "videoHint": "Slaat een bijgesneden kopie op in dezelfde container. Video wordt opnieuw gecodeerd; audio blijft behouden.",
     "play": "Voorbeeld afspelen",
@@ -102,5 +106,10 @@
   "convert": {
     "working": "Converteren…",
     "done": "{count} geconverteerde kopieën naast de originele bestanden opgeslagen."
+  },
+  "organize": {
+    "sorting": "Intern sorteren…",
+    "moving": "Items verplaatsen…",
+    "done": "Bestanden verplaatst."
   }
 }

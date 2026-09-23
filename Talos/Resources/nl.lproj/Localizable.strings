@@ -19,6 +19,7 @@
 "Next" = "Volgende";
 "Action settings" = "Actie-instellingen";
 "Name" = "Naam";
+"Configuration" = "Configuratie";
 "Save" = "Opslaan";
 "Cancel" = "Annuleren";
 "Add" = "Toevoegen";
@@ -119,3 +120,6 @@
 "Press to edit. Press and hold to open." = "Druk om te bewerken. Houd ingedrukt om te openen.";
 "Press to edit settings." = "Druk om instellingen te bewerken.";
 "Repository URL" = "Repository-URL";
+
+"Saved in Keychain. Leave empty to keep it." = "Opgeslagen in Sleutelhanger. Laat leeg om te behouden.";
+"Couldn't save action" = "Actie opslaan mislukt";

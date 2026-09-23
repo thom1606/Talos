@@ -105,6 +105,8 @@ nonisolated struct ExtensionCommand: Codable, Sendable, Equatable, Identifiable 
 nonisolated struct ExtensionSetting: Codable, Sendable, Equatable, Identifiable {
     let name: String
     let displayName: String
+    let section: String?
+    let placeholder: String?
     let type: ValueType
     let description: String?
     let required: Bool?

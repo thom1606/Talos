@@ -108,7 +108,13 @@ final class TalosFlows: XCTestCase {
           "name": "UI Test Tools", "version": "1.0.0",
           "talos": { "bundleId": "com.talos.uitests.tools", "entry": "src/index.ts", "locales": {} },
           "commands": [{ "name": "inspect", "displayName": "Inspect Test File",
-                         "icon": "doc.text", "supportedFileTypes": ["*"] }]
+                         "icon": "doc.text", "supportedFileTypes": ["*"],
+                         "settings": [
+                           { "name": "server", "displayName": "Server", "type": "text", "required": true },
+                           { "name": "password", "displayName": "Password", "type": "password", "required": true },
+                           { "name": "expiry", "displayName": "Expire after", "section": "Link expiration",
+                             "type": "select", "options": ["Never", "7 days", "30 days"] }
+                         ] }]
         }
         """.utf8).write(to: project.appendingPathComponent("package.json"))
         finishOnboarding()
@@ -128,6 +134,24 @@ final class TalosFlows: XCTestCase {
         navigate("Wheel")
         let tile = app.descendants(matching: .any)["wheel.palette.com.talos.uitests.tools.inspect"].firstMatch
         XCTAssertTrue(tile.waitForExistence(timeout: 5))
+        let wheel = app.descendants(matching: .any)["wheel.preview"].firstMatch
+        let destination = wheel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -90))
+        tile.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .click(forDuration: 0.1, thenDragTo: destination, withVelocity: .slow, thenHoldForDuration: 0.1)
+        let action = app.buttons["Inspect Test File"].firstMatch
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        action.click()
+        let server = app.textFields["wheel.entry.setting.server"]
+        let password = app.secureTextFields["wheel.entry.setting.password"]
+        XCTAssertTrue(server.waitForExistence(timeout: 5))
+        XCTAssertTrue(password.exists)
+        XCTAssertTrue(app.staticTexts["Link expiration"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["wheel.entry.setting.expiry"].firstMatch.exists)
+        let title = app.staticTexts["Edit Action"].firstMatch
+        XCTAssertTrue(title.exists)
+        XCTAssertLessThan(abs(title.frame.minX - app.staticTexts["Name"].firstMatch.frame.minX), 50)
+        app.buttons["Cancel"].click()
         app.terminate()
         app.launch()
         XCTAssertTrue(tile.waitForExistence(timeout: 10))

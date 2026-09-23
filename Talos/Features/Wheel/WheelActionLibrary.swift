@@ -45,7 +45,8 @@ final class WheelActionLibrary {
         case let .extensionAction(tile):
             Task {
                 do {
-                    try await runtime.activate(tile: tile, files: files.map { .init(path: $0.url.path, name: $0.url.lastPathComponent, contentType: $0.contentType.identifier, accessURL: $0.url) })
+                    let configuredTile = try configured(tile)
+                    try await runtime.activate(tile: configuredTile, files: files.map { .init(path: $0.url.path, name: $0.url.lastPathComponent, contentType: $0.contentType.identifier, accessURL: $0.url) })
                 } catch {
                     reportError(error.localizedDescription)
                 }
@@ -94,11 +95,13 @@ final class WheelActionLibrary {
         }
 
         return extensionAction(command, in: loadedExtension, id: item.id,
-                               title: displayTitle(for: item, fallback: command.displayName), files: files)
+                               title: displayTitle(for: item, fallback: command.displayName),
+                               files: files, config: item.config)
     }
 
     private func extensionAction(_ command: ExtensionCommand, in loaded: LoadedExtension,
-                                 id: UUID, title: String? = nil, files: [DraggedFile]) -> WheelAction? {
+                                 id: UUID, title: String? = nil, files: [DraggedFile],
+                                 config: [String: TileConfigValue] = [:]) -> WheelAction? {
         guard command.supports(files) else { return nil }
         if let names = command.subcommands {
             let children = names.compactMap { name -> WheelAction? in
@@ -110,7 +113,35 @@ final class WheelActionLibrary {
                                destination: .folder(children))
         }
         return WheelAction(id: id, title: title ?? command.displayName, symbolName: resolvedSymbolName(command.icon),
-                           destination: .extensionAction(Tile(extensionBundleID: loaded.id, action: command.name)))
+                           destination: .extensionAction(Tile(id: id, extensionBundleID: loaded.id,
+                                                              action: command.name, config: config)))
+    }
+
+    private func configured(_ tile: Tile) throws -> Tile {
+        guard let command = extensions.first(where: { $0.id == tile.extensionBundleID })?
+            .manifest.commands.first(where: { $0.name == tile.action }) else { return tile }
+        var configuredTile = tile
+        let settings = command.settings ?? []
+        let passwords = settings.contains(where: { $0.type == .password })
+            ? try ActionSettingSecretStore().passwords(for: tile.id) : [:]
+        for setting in settings {
+            if setting.type == .password {
+                if let password = passwords[setting.name] {
+                    configuredTile.config[setting.name] = .string(password)
+                }
+            } else if configuredTile.config[setting.name] == nil {
+                configuredTile.config[setting.name] = setting.defaultValue
+            }
+            if setting.required == true {
+                guard let value = configuredTile.config[setting.name] else {
+                    throw WheelActionConfigurationError.missing(setting.displayName)
+                }
+                if case let .string(text) = value, text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    throw WheelActionConfigurationError.missing(setting.displayName)
+                }
+            }
+        }
+        return configuredTile
     }
 
     private func displayTitle(for item: WheelItem, fallback: String) -> String {
@@ -141,6 +172,16 @@ private extension ExtensionCommand {
                 guard let supportedType = UTType(identifier) else { return false }
                 return file.contentType.conforms(to: supportedType)
             }
+        }
+    }
+}
+
+private enum WheelActionConfigurationError: LocalizedError {
+    case missing(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .missing(name): "Set \(name) in this action's settings first."
         }
     }
 }

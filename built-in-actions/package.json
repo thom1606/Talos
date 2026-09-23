@@ -53,6 +53,15 @@
       ]
     },
     {
+      "name": "organize",
+      "displayName": "Organize",
+      "icon": "folder.badge.gearshape",
+      "description": "Organize selected items into folders with Apple Intelligence.",
+      "supportedFileTypes": [
+        "*"
+      ]
+    },
+    {
       "name": "compress",
       "displayName": "Compress",
       "icon": "arrow.down.right.and.arrow.up.left",

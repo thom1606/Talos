@@ -28,6 +28,80 @@ if (!entrypoint) {
 
 let nextRequestID = 0;
 const pendingDialogRequests = new Map();
+const pendingModelRequests = new Map();
+Object.defineProperty(globalThis, Symbol.for('talos.modelRequest'), {
+  value: (prompt, options = []) => {
+    const settings = Array.isArray(options) ? { tools: options } : options;
+    const tools = settings.tools ?? [];
+    const stream = settings.stream === true;
+    const requestID = `${process.pid}-${++nextRequestID}`;
+    const context = activationContext.getStore();
+    const pending = { context, tools: new Map(tools.map(tool => [tool.name, tool])),
+      stream, latest: undefined, last: undefined, waiting: undefined, finished: false, error: undefined };
+    const send = (method) => process.stdout.write(`${JSON.stringify({ protocol: 'talos', version: 1,
+      method, requestID, parameters: method === 'modelRequest' ? {
+        prompt, tools: tools.map(({ name, description }) => ({ name, description })),
+        instructions: settings.instructions, temperature: settings.temperature,
+        maximumResponseTokens: settings.maximumResponseTokens, useCase: settings.useCase, stream,
+      } : {} })}\n`);
+    const cancel = () => {
+      if (!pendingModelRequests.delete(requestID)) return;
+      settings.signal?.removeEventListener('abort', cancel);
+      pending.finished = true;
+      pending.error = new DOMException('The request was aborted', 'AbortError');
+      pending.reject?.(pending.error);
+      pending.waiting?.();
+      send('modelCancel');
+    };
+    pending.cleanup = () => settings.signal?.removeEventListener('abort', cancel);
+    if (settings.signal?.aborted) {
+      if (!stream) return Promise.reject(new DOMException('The request was aborted', 'AbortError'));
+      return (async function* () { throw new DOMException('The request was aborted', 'AbortError'); })();
+    }
+    pendingModelRequests.set(requestID, pending);
+    settings.signal?.addEventListener('abort', cancel, { once: true });
+    send('modelRequest');
+    if (!stream) return new Promise((resolve, reject) => { pending.resolve = resolve; pending.reject = reject; });
+    return (async function* () {
+      try {
+        while (true) {
+          if (pending.latest !== undefined) {
+            const snapshot = pending.latest;
+            pending.latest = undefined;
+            pending.last = snapshot;
+            yield snapshot;
+            continue;
+          }
+          if (pending.error) throw pending.error;
+          if (pending.finished) return;
+          await new Promise(resolve => { pending.waiting = resolve; });
+          pending.waiting = undefined;
+        }
+      } finally { cancel(); }
+    })();
+  },
+});
+function modelToolReply(requestID, parameters) {
+  process.stdout.write(`${JSON.stringify({ protocol: 'talos', version: 1,
+    method: 'modelToolResponse', requestID, parameters })}\n`);
+}
+async function invokeModelTool(command) {
+  const pending = pendingModelRequests.get(command.modelRequestID);
+  const tool = pending?.tools.get(command.toolName);
+  try {
+    if (!pending || !tool) throw new Error('Unknown model tool');
+    if (typeof command.input !== 'string' || Buffer.byteLength(command.input) > 8192) {
+      throw new Error('Invalid model tool input');
+    }
+    const result = await activationContext.run(pending.context, () => tool.call(command.input));
+    if (typeof result !== 'string' || Buffer.byteLength(result) > 8192) {
+      throw new Error('Model tool must return at most 8 KB of text');
+    }
+    modelToolReply(command.requestID, { result });
+  } catch (error) {
+    modelToolReply(command.requestID, { error: String(error?.message ?? error).slice(0, 2048) });
+  }
+}
 
 function requestDialog(kind, message) {
   const requestID = `${process.pid}-${++nextRequestID}`;
@@ -142,6 +216,27 @@ for await (const line of commands) {
       windowRequests.delete(command.requestID);
       continue;
     }
+    if (command.type === 'modelToolRequest') { void invokeModelTool(command); continue; }
+    if (command.type === 'modelSnapshot') {
+      const pending = pendingModelRequests.get(command.requestID);
+      if (pending?.stream) { pending.latest = command.result; pending.waiting?.(); }
+      continue;
+    }
+    if (command.type === 'modelResponse') {
+      const pending = pendingModelRequests.get(command.requestID);
+      if (!pending) continue;
+      pendingModelRequests.delete(command.requestID);
+      pending.cleanup();
+      pending.finished = true;
+      if (command.error) pending.error = new Error(command.error);
+      else if (pending.stream && pending.latest !== command.result && pending.last !== command.result) {
+        pending.latest = command.result;
+      }
+      if (pending.stream) pending.waiting?.();
+      else if (pending.error) pending.reject(pending.error);
+      else pending.resolve(command.result);
+      continue;
+    }
     if (command.type === 'response') {
       const pendingRequest = pendingDialogRequests.get(command.requestID);
       if (!pendingRequest) {
@@ -189,5 +284,7 @@ for (const { reject } of pendingDialogRequests.values()) {
   reject(new Error('Talos closed before the dialog received a response'));
 }
 pendingDialogRequests.clear();
+for (const { reject } of pendingModelRequests.values()) reject(new Error('Talos closed during model generation'));
+pendingModelRequests.clear();
 await deactivate();
 await activationQueue;

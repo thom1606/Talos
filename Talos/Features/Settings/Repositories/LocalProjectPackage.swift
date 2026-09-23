@@ -25,6 +25,7 @@ struct LocalProjectPackage: Decodable {
         let icon: String?
         let description: String?
         let supportedFileTypes: [String]
+        let settings: [ExtensionSetting]?
         let subcommands: [String]?
     }
 
@@ -66,7 +67,8 @@ struct LocalProjectPackage: Decodable {
                 description: command.description,
                 extensionName: extensionName,
                 symbolName: command.icon,
-                supportedContexts: supportedContexts(for: command.supportedFileTypes)
+                supportedContexts: supportedContexts(for: command.supportedFileTypes),
+                settings: command.settings ?? []
             )
         }
     }
