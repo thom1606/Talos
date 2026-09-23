@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { talosWindow } from '@thom1606/talos-sdk/window';
+import { PauseIcon, PlayIcon } from '@radix-ui/react-icons';
 import { Button, Text, t, useTalos, type TalosFile } from '@thom1606/talos-sdk/react';
 import { fitCrop, moveCrop, pixelCrop, resizeCrop, type Handle, type Rect } from './crop-geometry';
 import { mediaKind } from '../media';
@@ -19,7 +20,9 @@ export default function CropWindow() {
   const [ratio, setRatio] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('');
+  const [videoTime, setVideoTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 400, height: 400 });
   const stage = useRef<HTMLDivElement>(null);
   const photo = useRef<HTMLImageElement>(null);
@@ -36,7 +39,7 @@ export default function CropWindow() {
     const file = images.find(file => file.path === selectedPath);
     let cancelled = false;
     let previewURL: string | undefined;
-    setImage(null); setError(''); setStatus('');
+    setImage(null); setError(''); setVideoTime(0); setVideoDuration(0); setVideoPlaying(false);
     if (!file) { setBusy(false); return; }
     setBusy(true);
     loadImage(file).then(next => {
@@ -54,7 +57,6 @@ export default function CropWindow() {
     const handle = (event.target as HTMLElement).dataset.handle as Handle | undefined;
     drag.current = { start: crop, clientX: event.clientX, clientY: event.clientY,
       scale: event.currentTarget.getBoundingClientRect().width / crop.width, handle: handle ?? 'move' };
-    setStatus('');
   }
   function updateDrag(event: PointerEvent<HTMLDivElement>) {
     const current = drag.current;
@@ -66,18 +68,17 @@ export default function CropWindow() {
   }
   function changeDimension(axis: 'width' | 'height', value: number) {
     if (!image || !Number.isFinite(value) || value < 1) return;
-    setStatus('');
     setCrop(resizeCrop(crop, axis === 'width' ? 'e' : 's', axis === 'width' ? value - crop.width : 0,
       axis === 'height' ? value - crop.height : 0, image, ratio));
   }
   async function save() {
     if (!image || (!image.video && (!photo.current?.complete || !photo.current.naturalWidth))) return;
-    setBusy(true); setError(''); setStatus('');
+    setBusy(true); setError('');
     try {
       const rect = outputCrop(crop, image);
       if (image.video) {
-        const result = await talosWindow.invoke<string>('cropVideo', { index: files.findIndex(file => file.path === selectedPath), rect });
-        setStatus(t('crop.saved', { name: result.split('/').pop() ?? result }));
+        await talosWindow.invoke<string>('cropVideo', { index: files.findIndex(file => file.path === selectedPath), rect });
+        await talosWindow.close();
         return;
       }
       const canvas = document.createElement('canvas'); canvas.width = rect.width; canvas.height = rect.height;
@@ -92,21 +93,25 @@ export default function CropWindow() {
       const bridge = (window as unknown as { __talosWindow: { request(message: { method: string; index: number }): Promise<unknown> } }).__talosWindow;
       await bridge.request({ method: 'setSaveInput', index: files.findIndex(file => file.path === selectedPath) });
       const result = await talosWindow.saveFile(output, name);
-      if (result) setStatus(t('crop.saved', { name: result }));
+      if (result) await talosWindow.close();
     } catch (e) { setError(String(e instanceof Error ? e.message : e)); }
     finally { setBusy(false); }
   }
   const scale = image ? Math.min((stageSize.width - 24) / image.width, (stageSize.height - 24) / image.height, 1) : 1;
   const pixels = image ? outputCrop(crop, image) : crop;
   return <main aria-busy={busy}>
-    <div className="filebar"><Text size="callout" tone="secondary" title={image?.name}>{image?.name ?? t('crop.choosePrompt')}</Text>
-      {images.length > 1 && <select aria-label={t('crop.chooseImage')} value={selectedPath} disabled={busy}
+    {images.length > 1 && <div className="filebar"><select aria-label={t('crop.chooseImage')} value={selectedPath} disabled={busy}
         onChange={event => setSelectedPath(event.currentTarget.value)}>
         {images.map(file => <option key={file.path} value={file.path}>{file.name}</option>)}
-      </select>}</div>
+      </select></div>}
     <div className="stage" ref={stage}>
       {image ? <div className="image-frame" style={{ width: image.width * scale, height: image.height * scale }}>
-        {image.video ? <video ref={video} src={image.dataURL} muted loop playsInline preload="metadata" aria-label={image.name}
+        {image.video ? <video ref={video} src={image.dataURL} muted loop playsInline preload="auto" aria-label={image.name}
+          onLoadedMetadata={event => setVideoDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
+          onLoadedData={event => { if (event.currentTarget.currentTime === 0 && event.currentTarget.duration > 0.01) event.currentTarget.currentTime = 0.01; }}
+          onTimeUpdate={event => setVideoTime(event.currentTarget.currentTime)}
+          onSeeked={event => setVideoTime(event.currentTarget.currentTime)}
+          onPlay={() => setVideoPlaying(true)} onPause={() => setVideoPlaying(false)}
           onError={() => setError(t('crop.videoError'))} /> : <img ref={photo} src={image.dataURL} alt={image.name} draggable={false} />}
         <svg className="shade" viewBox={`0 0 ${image.width} ${image.height}`} aria-hidden="true">
           <path fillRule="evenodd" d={`M0 0H${image.width}V${image.height}H0Z M${crop.x} ${crop.y}h${crop.width}v${crop.height}h${-crop.width}Z`} />
@@ -130,21 +135,26 @@ export default function CropWindow() {
         <Text as="p" tone="secondary">{t('crop.noInput')}</Text></div>}
     </div>
     <section className="controls" aria-label={t('crop.options')}>
-      {image?.video && <div className="video-controls"><Button disabled={busy} onClick={() => {
+      {image?.video && <div className="video-controls"><Button className="video-play-button" aria-label={videoPlaying ? t('crop.pause') : t('crop.play')} disabled={busy} onClick={() => {
         if (video.current?.paused) void video.current.play().catch(() => setError(t('crop.videoError')));
         else video.current?.pause();
-      }}>{t('crop.play')}</Button><Text size="caption" tone="secondary" textKey="crop.videoHint" /></div>}
+      }}>{videoPlaying ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}</Button>
+        <input className="video-seek" type="range" min="0" max={videoDuration || 1} step="0.01" value={Math.min(videoTime, videoDuration || 1)}
+          aria-label={t('crop.seek')} aria-valuetext={formatTime(videoTime)} disabled={busy || !videoDuration}
+          onChange={event => { const time = Number(event.currentTarget.value); if (video.current) video.current.currentTime = time; setVideoTime(time); }} />
+        <Text as="span" size="caption" tone="secondary" className="video-time">{formatTime(videoTime)} / {formatTime(videoDuration)}</Text>
+      </div>}
       <div className="option-row"><Text size="callout" textKey="crop.aspectRatio" /><div className="talos-segments" role="group" aria-label={t('crop.aspectRatio')}>
         {ratios.map(([name, value]) => <Button key={name} aria-pressed={ratio === value} disabled={!image || busy}
-          onClick={() => { setRatio(value); if (image) setCrop(fitCrop(image, value)); setStatus(''); }}>{name === 'Free' ? t('crop.free') : name}</Button>)}
+          onClick={() => { setRatio(value); if (image) setCrop(fitCrop(image, value)); }}>{name === 'Free' ? t('crop.free') : name}</Button>)}
       </div></div>
       <div className="dimensions">
         <Dimension label={t('crop.widthShort')} value={pixels.width} max={image?.width ?? 1} disabled={!image || busy} onChange={value => changeDimension('width', value)} />
         <Dimension label={t('crop.heightShort')} value={pixels.height} max={image?.height ?? 1} disabled={!image || busy} onChange={value => changeDimension('height', value)} />
       </div>
-      <Text as="p" size="subheadline" tone={error ? 'danger' : 'secondary'} className="message" role={error ? 'alert' : 'status'}>{error || status || (image ? t('crop.original', { width: image.width, height: image.height }) : t('crop.formats'))}</Text>
+      {error && <Text as="p" size="subheadline" tone="danger" className="message" role="alert">{error}</Text>}
     </section>
-    <footer><Button disabled={!image || busy} onClick={() => { if (image) setCrop(fitCrop(image, null)); setRatio(null); setStatus(''); setError(''); }}>{t('crop.reset')}</Button>
+    <footer><Button disabled={!image || busy} onClick={() => { if (image) setCrop(fitCrop(image, null)); setRatio(null); setError(''); }}>{t('crop.reset')}</Button>
       <Button variant="primary" disabled={!image || busy} onClick={save}>{busy ? t('crop.working') : t('crop.saveCopy')}</Button></footer>
   </main>;
 }
@@ -196,4 +206,10 @@ function Dimension({ label, value, max, disabled, onChange }: {
 function outputCrop(crop: Rect, image: CropImage): Rect {
   const rect = pixelCrop(crop, image);
   return image.video ? { ...rect, width: Math.max(2, Math.floor(rect.width / 2) * 2), height: Math.max(2, Math.floor(rect.height / 2) * 2) } : rect;
+}
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds)) return '0:00';
+  const whole = Math.floor(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }

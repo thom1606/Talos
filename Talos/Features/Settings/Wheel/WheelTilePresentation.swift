@@ -46,9 +46,15 @@ struct WheelTilePresentation: Identifiable, Equatable {
     let extensionBundleID: String
     let action: String
     let title: String
+    let description: String?
     let extensionName: String
     let symbolName: String?
     let supportedContexts: Set<WheelPreviewContext>
+
+    var helpText: String {
+        let details = description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return details.isEmpty ? title : details
+    }
 
     var resolvedSymbolName: String {
         guard let symbolName else { return "questionmark" }
@@ -76,6 +82,7 @@ extension WheelTilePresentation {
         extensionBundleID: "talos.system",
         action: "open-settings",
         title: String(localized: "Settings"),
+        description: nil,
         extensionName: "Talos",
         symbolName: "gearshape",
         supportedContexts: Set(WheelPreviewContext.allCases)

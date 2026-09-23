@@ -22,7 +22,7 @@ cp vendor/build/libjpeg-turbo-3.1.3/README.ijg vendor/licenses/libjpeg-IJG.txt
 for arch in ${ARCHS:-$(uname -m)}; do
   mkdir -p "vendor/build/ffmpeg-$arch" "vendor/build/jpeg-$arch" "vendor/bin/$arch"
   if [[ ! -f "vendor/bin/$arch/.configuration" ]] || [[ "$(cat "vendor/bin/$arch/.configuration")" != "$configuration_hash" ]]; then
-    rm -f "vendor/bin/$arch/ffmpeg" "vendor/bin/$arch/ffprobe" "vendor/bin/$arch/jpegtran"
+    rm -f "vendor/bin/$arch/ffmpeg" "vendor/bin/$arch/ffprobe" "vendor/bin/$arch/jpegtran" "vendor/bin/$arch/cjpeg" "vendor/bin/$arch/djpeg"
   fi
   if [[ ! -x "vendor/bin/$arch/ffmpeg" ]]; then
     (
@@ -37,15 +37,17 @@ for arch in ${ARCHS:-$(uname -m)}; do
       cp ffmpeg ffprobe "$root/vendor/bin/$arch/"
     )
   fi
-  if [[ ! -x "vendor/bin/$arch/jpegtran" ]]; then
+  if [[ ! -x "vendor/bin/$arch/jpegtran" || ! -x "vendor/bin/$arch/cjpeg" || ! -x "vendor/bin/$arch/djpeg" ]]; then
     cmake -S vendor/build/libjpeg-turbo-3.1.3 -B "vendor/build/jpeg-$arch" \
       -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="$arch" -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
       -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DWITH_SIMD=OFF
-    cmake --build "vendor/build/jpeg-$arch" --target jpegtran-static -j "$jobs"
+    cmake --build "vendor/build/jpeg-$arch" --target jpegtran-static cjpeg-static djpeg-static -j "$jobs"
     cp "vendor/build/jpeg-$arch/jpegtran-static" "vendor/bin/$arch/jpegtran"
+    cp "vendor/build/jpeg-$arch/cjpeg-static" "vendor/bin/$arch/cjpeg"
+    cp "vendor/build/jpeg-$arch/djpeg-static" "vendor/bin/$arch/djpeg"
   fi
   printf '%s' "$configuration_hash" > "vendor/bin/$arch/.configuration"
-  for tool in ffmpeg ffprobe jpegtran; do
+  for tool in ffmpeg ffprobe jpegtran cjpeg djpeg; do
     # Only system frameworks/dylibs may be linked. Never depend on the build machine's Homebrew.
     if otool -L "vendor/bin/$arch/$tool" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/usr/lib/|/System/Library/)' ; then
       echo "Unexpected non-system codec dependency" >&2; exit 1

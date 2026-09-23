@@ -17,7 +17,7 @@ try {
   for (const arch of await readdir(join(stage, 'vendor/bin'))) {
     if (!architectures.includes(arch)) await rm(join(stage, 'vendor/bin', arch), { recursive: true });
   }
-  for (const arch of architectures) for (const tool of ['ffmpeg', 'ffprobe', 'jpegtran']) await stat(join(stage, 'vendor/bin', arch, tool));
+  for (const arch of architectures) for (const tool of ['ffmpeg', 'ffprobe', 'jpegtran', 'cjpeg', 'djpeg']) await stat(join(stage, 'vendor/bin', arch, tool));
   await rm(archive);
   execFileSync('/usr/bin/ditto', ['-c', '-k', '--norsrc', '--noextattr', '--noqtn', stage, archive]);
   console.log(`Bundled Talos actions: ${((await stat(archive)).size / 1024 / 1024).toFixed(1)} MB`);

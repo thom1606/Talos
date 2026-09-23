@@ -57,7 +57,6 @@
 "Receive action notifications" = "Recevoir les notifications des actions";
 "It’s ready in Finder" = "Prêt dans le Finder";
 "Start dragging files in Finder, hold Shift, then drop them on the Talos action you want to run." = "Glissez des fichiers dans le Finder, maintenez Maj et déposez-les sur l’action Talos souhaitée.";
-"Add repositories and tailor the wheel whenever you like by opening Talos again." = "Rouvrez Talos pour ajouter des dépôts et personnaliser la roue.";
 "Let’s go!" = "C’est parti !";
 "Files" = "Fichiers";
 "Action" = "Action";
@@ -101,12 +100,12 @@
 "Optional" = "Facultatif";
 "For private repositories, use a fine-grained token with Contents: Read permission for this repository. The token is stored in Keychain." = "Pour les dépôts privés, utilisez un jeton à accès limité avec l’autorisation Contents: Read. Il sera enregistré dans le Trousseau.";
 "Downloading and installing the latest release…" = "Téléchargement et installation de la dernière version…";
-"Repository update notifications" = "Notifications de mise à jour des dépôts";
+"Update notifications" = "Notifications de mise à jour";
 "Notifications are disabled in System Settings." = "Les notifications sont désactivées dans Réglages Système.";
 "Open Notification Settings…" = "Ouvrir les réglages des notifications…";
 "Start Talos at login" = "Lancer Talos à la connexion";
 "Check for app updates automatically" = "Rechercher automatiquement les mises à jour de l’application";
-"Run your installed actions locally. Add TypeScript extensions without installing developer tools." = "Exécutez vos actions installées localement. Ajoutez des extensions TypeScript sans installer d’outils de développement.";
+"Run your installed actions locally. Add extensions and expand your tools." = "Exécutez vos actions installées localement. Ajoutez des extensions et élargissez vos possibilités.";
 "Update available: %@" = "Mise à jour disponible : %@";
 "Image" = "Image";
 "Video" = "Vidéo";

@@ -11,7 +11,7 @@
     },
     "compress": {
       "displayName": "Comprimeren",
-      "description": "Verklein bestanden zonder beeld- of audio-/videogegevens te verliezen."
+      "description": "Verklein bestanden met minimaal zichtbaar JPEG-kwaliteitsverlies."
     },
     "convert": {
       "displayName": "Converteren",
@@ -80,7 +80,9 @@
     "tooLarge": "Afbeeldingen mogen maximaal 40 megapixels en 16.000 pixels per zijde hebben",
     "videoUnsupported": "Video bijsnijden ondersteunt MP4, MOV en M4V. Converteer andere formaten eerst.",
     "videoHint": "Slaat een bijgesneden kopie op in dezelfde container. Video wordt opnieuw gecodeerd; audio blijft behouden.",
-    "play": "Voorbeeld afspelen / pauzeren",
+    "play": "Voorbeeld afspelen",
+    "pause": "Voorbeeld pauzeren",
+    "seek": "Videopositie",
     "videoError": "Deze video kan niet worden getoond. Probeer eerst naar MP4 te converteren."
   },
   "actions": {
@@ -92,8 +94,9 @@
   },
   "compress": {
     "working": "Bestand {current} van {total} comprimeren…",
-    "done": "{count} bestanden gecomprimeerd; {size} bespaard. {skipped} ongewijzigd.",
-    "unchanged": "Een kleinere verliesvrije kopie was niet mogelijk. De originele bestanden zijn ongewijzigd.",
+    "doneOne": "1 bestand gecomprimeerd · {size} bespaard",
+    "doneMany": "{count} bestanden gecomprimeerd · {size} bespaard",
+    "unchanged": "Een kleinere kopie was niet mogelijk. De originele bestanden zijn ongewijzigd.",
     "partial": "{reduced} gecomprimeerd; {skipped} ongewijzigd; {failed} mislukt. De originele bestanden zijn ongewijzigd."
   },
   "convert": {

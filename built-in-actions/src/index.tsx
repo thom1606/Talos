@@ -1,6 +1,10 @@
 import { talos, t, type TalosContext } from '@thom1606/talos-sdk';
 import CropWindow from './windows/crop';
-import { archive, compress, convert, cropVideo, homogeneous, stopOperations } from './operations';
+import { archive } from './operations/archive';
+import { compress } from './operations/compress';
+import { convert, homogeneous } from './operations/convert';
+import { cropVideo } from './operations/crop-video';
+import { stopOperations } from './operations/shared';
 
 export async function activate(context: TalosContext) {
   try {
@@ -14,7 +18,7 @@ export async function activate(context: TalosContext) {
     }
     switch (context.action) {
       case 'crop':
-        talos.openWindow({ title: t('crop.title'), children: <CropWindow />, width: 520, height: 680,
+        talos.openWindow({ title: t('crop.title'), children: <CropWindow />, width: 480, height: 680,
           onRequest: async (method, payload, context, signal) => {
             if (method !== 'cropVideo' || !payload || typeof payload !== 'object') throw new Error('Unknown crop request');
             return cropVideo(context, payload as Record<string, unknown>, signal);
@@ -37,7 +41,8 @@ export async function activate(context: TalosContext) {
           } catch (error) { failures.push(file.name); console.error(file.name, error); }
         }
         if (failures.length) talos.failed(t('compress.partial', { reduced, skipped, failed: failures.length }));
-        else if (saved) talos.success(t('compress.done', { count: reduced, size: formatBytes(saved), skipped }));
+        else if (saved) talos.success(t(reduced === 1 ? 'compress.doneOne' : 'compress.doneMany',
+          { count: reduced, size: formatBytes(saved) }));
         else talos.toast(t('compress.unchanged'));
         break;
       }

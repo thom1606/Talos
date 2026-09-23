@@ -36,6 +36,7 @@ struct WheelTileList: View {
                         subtitle: tile.extensionName,
                         symbolName: tile.resolvedSymbolName
                     )
+                    .help(tile.helpText)
                     .accessibilityIdentifier("wheel.palette.\(tile.id)")
                     .modifier(WheelEditorInteraction(source: .tile(tile.id), model: model))
                     .contextMenu {

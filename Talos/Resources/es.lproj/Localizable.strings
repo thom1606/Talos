@@ -57,7 +57,6 @@
 "Receive action notifications" = "Recibir notificaciones de acciones";
 "It’s ready in Finder" = "Listo en Finder";
 "Start dragging files in Finder, hold Shift, then drop them on the Talos action you want to run." = "Arrastra archivos en Finder, mantén Mayúsculas y suéltalos sobre la acción que quieras ejecutar.";
-"Add repositories and tailor the wheel whenever you like by opening Talos again." = "Abre Talos de nuevo para añadir repositorios y personalizar la rueda.";
 "Let’s go!" = "¡Empezar!";
 "Files" = "Archivos";
 "Action" = "Acción";
@@ -101,12 +100,12 @@
 "Optional" = "Opcional";
 "For private repositories, use a fine-grained token with Contents: Read permission for this repository. The token is stored in Keychain." = "Para repositorios privados, usa un token específico con permiso Contents: Read. Se guardará en el llavero.";
 "Downloading and installing the latest release…" = "Descargando e instalando la última versión…";
-"Repository update notifications" = "Notificaciones de actualización de repositorios";
+"Update notifications" = "Notificaciones de actualización";
 "Notifications are disabled in System Settings." = "Las notificaciones están desactivadas en Ajustes del Sistema.";
 "Open Notification Settings…" = "Abrir ajustes de notificaciones…";
 "Start Talos at login" = "Iniciar Talos al iniciar sesión";
 "Check for app updates automatically" = "Buscar actualizaciones de la aplicación automáticamente";
-"Run your installed actions locally. Add TypeScript extensions without installing developer tools." = "Ejecuta tus acciones instaladas localmente. Añade extensiones TypeScript sin instalar herramientas de desarrollo.";
+"Run your installed actions locally. Add extensions and expand your tools." = "Ejecuta tus acciones instaladas localmente. Añade extensiones y amplía tus herramientas.";
 "Update available: %@" = "Actualización disponible: %@";
 "Image" = "Imagen";
 "Video" = "Vídeo";

@@ -23,7 +23,7 @@ struct OnboardingIntroView: View {
                 OnboardingFeature(
                     symbolName: "lock.shield",
                     title: "Ready on your Mac",
-                    detail: "Run your installed actions locally. Add TypeScript extensions without installing developer tools."
+                    detail: "Run your installed actions locally. Add extensions and expand your tools."
                 )
             }
         } actions: {

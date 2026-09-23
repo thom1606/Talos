@@ -11,7 +11,7 @@
     },
     "compress": {
       "displayName": "Compresser",
-      "description": "Réduire la taille des fichiers sans perdre les données image, audio ou vidéo."
+      "description": "Réduisez la taille avec une perte de qualité JPEG à peine visible."
     },
     "convert": {
       "displayName": "Convertir",
@@ -80,7 +80,9 @@
     "tooLarge": "Les images sont limitées à 40 mégapixels et 16 000 pixels par côté",
     "videoUnsupported": "Le recadrage vidéo accepte MP4, MOV et M4V. Convertissez d’abord les autres formats.",
     "videoHint": "Enregistre une copie recadrée dans le même conteneur. La vidéo est réencodée ; l’audio est conservé.",
-    "play": "Lire / mettre en pause l’aperçu",
+    "play": "Lire l’aperçu",
+    "pause": "Mettre l’aperçu en pause",
+    "seek": "Position dans la vidéo",
     "videoError": "Impossible de prévisualiser cette vidéo. Essayez d’abord de la convertir en MP4."
   },
   "actions": {
@@ -92,8 +94,9 @@
   },
   "compress": {
     "working": "Compression de {current} sur {total}…",
-    "done": "{count} fichiers compressés ; {size} économisés. {skipped} inchangés.",
-    "unchanged": "Aucune copie sans perte plus petite n’était possible. Les originaux sont inchangés.",
+    "doneOne": "1 fichier compressé · {size} économisés",
+    "doneMany": "{count} fichiers compressés · {size} économisés",
+    "unchanged": "Aucune copie plus petite n’était possible. Les originaux sont inchangés.",
     "partial": "{reduced} compressés ; {skipped} inchangés ; {failed} échecs. Les originaux sont inchangés."
   },
   "convert": {

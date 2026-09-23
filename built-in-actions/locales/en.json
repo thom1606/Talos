@@ -11,7 +11,7 @@
     },
     "compress": {
       "displayName": "Compress",
-      "description": "Reduce file size without losing image or audio/video data."
+      "description": "Reduce file size with minimal visible JPEG quality loss."
     },
     "convert": {
       "displayName": "Convert",
@@ -80,7 +80,9 @@
     "tooLarge": "Images must be at most 40 megapixels and 16,000 pixels per side",
     "videoUnsupported": "Video cropping supports MP4, MOV and M4V. Convert other formats first.",
     "videoHint": "Saves a cropped copy in the same container. Video is re-encoded; audio is preserved.",
-    "play": "Play / pause preview",
+    "play": "Play preview",
+    "pause": "Pause preview",
+    "seek": "Video position",
     "videoError": "This video cannot be previewed. Try converting it to MP4 first."
   },
   "actions": {
@@ -92,8 +94,9 @@
   },
   "compress": {
     "working": "Compressing {current} of {total}\u2026",
-    "done": "Compressed {count} files; saved {size}. {skipped} unchanged.",
-    "unchanged": "No smaller lossless copy was possible. Originals are unchanged.",
+    "doneOne": "Compressed 1 file · saved {size}",
+    "doneMany": "Compressed {count} files · saved {size}",
+    "unchanged": "No smaller copy was possible. Originals are unchanged.",
     "partial": "Compressed {reduced}; {skipped} unchanged; {failed} failed. Originals are unchanged."
   },
   "convert": {

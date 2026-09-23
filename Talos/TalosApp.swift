@@ -58,8 +58,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isTerminating = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if !ProcessInfo.processInfo.arguments.contains("--background") {
+        if !ProcessInfo.processInfo.arguments.contains("--background"),
+           !TalosPreferences.defaults.bool(forKey: TalosPreferenceKey.completedOnboarding) {
             NSApp.setActivationPolicy(.regular)
+        } else {
+            NSApp.setActivationPolicy(.accessory)
         }
 
         notificationService.openRepositories = { [weak self] in
@@ -145,7 +148,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func finishOnboarding() {
         closeOnboarding()
-        NSWorkspace.shared.open(FileManager.default.homeDirectoryForCurrentUser)
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        NSWorkspace.shared.open(downloads)
     }
 
     func onboardingWindowDidChange(_ window: NSWindow) {
@@ -305,9 +310,7 @@ struct TalosApp: App {
         .defaultSize(width: 940, height: 620)
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
-        .defaultLaunchBehavior(
-            (ProcessInfo.processInfo.arguments.contains("--background") || !TalosPreferences.defaults.bool(forKey: TalosPreferenceKey.completedOnboarding)) ? .suppressed : .presented
-        )
+        .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
         .commands {
             TalosSettingsCommands()

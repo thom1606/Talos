@@ -23,6 +23,7 @@ struct LocalProjectPackage: Decodable {
         let name: String
         let displayName: String
         let icon: String?
+        let description: String?
         let supportedFileTypes: [String]
         let subcommands: [String]?
     }
@@ -62,6 +63,7 @@ struct LocalProjectPackage: Decodable {
                 extensionBundleID: talos.bundleID,
                 action: command.name,
                 title: command.displayName,
+                description: command.description,
                 extensionName: extensionName,
                 symbolName: command.icon,
                 supportedContexts: supportedContexts(for: command.supportedFileTypes)

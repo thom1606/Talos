@@ -11,7 +11,7 @@
     },
     "compress": {
       "displayName": "Comprimir",
-      "description": "Reduce el tamaño sin perder datos de imagen, audio o vídeo."
+      "description": "Reduce el tamaño con una pérdida de calidad JPEG apenas visible."
     },
     "convert": {
       "displayName": "Convertir",
@@ -80,7 +80,9 @@
     "tooLarge": "Las imágenes deben tener como máximo 40 megapíxeles y 16 000 píxeles por lado",
     "videoUnsupported": "El recorte de vídeo admite MP4, MOV y M4V. Convierte antes otros formatos.",
     "videoHint": "Guarda una copia recortada en el mismo contenedor. El vídeo se vuelve a codificar; se conserva el audio.",
-    "play": "Reproducir / pausar vista previa",
+    "play": "Reproducir vista previa",
+    "pause": "Pausar vista previa",
+    "seek": "Posición del vídeo",
     "videoError": "No se puede previsualizar este vídeo. Prueba a convertirlo a MP4."
   },
   "actions": {
@@ -92,8 +94,9 @@
   },
   "compress": {
     "working": "Comprimiendo {current} de {total}…",
-    "done": "{count} archivos comprimidos; {size} ahorrados. {skipped} sin cambios.",
-    "unchanged": "No se pudo crear una copia sin pérdida más pequeña. Los originales siguen igual.",
+    "doneOne": "1 archivo comprimido · {size} ahorrados",
+    "doneMany": "{count} archivos comprimidos · {size} ahorrados",
+    "unchanged": "No se pudo crear una copia más pequeña. Los originales siguen igual.",
     "partial": "{reduced} comprimidos; {skipped} sin cambios; {failed} fallidos. Los originales siguen igual."
   },
   "convert": {

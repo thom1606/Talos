@@ -5,7 +5,7 @@ struct NotificationPreferencesView: View {
     let notifications: NotificationService
 
     var body: some View {
-        Toggle("Repository update notifications", isOn: Binding(
+        Toggle("Update notifications", isOn: Binding(
             get: { notifications.isAuthorized },
             set: { enabled in
                 if enabled { Task { await notifications.requestAuthorization() } }

@@ -9,15 +9,8 @@ struct OnboardingReadyView: View {
             subtitle: "Start dragging files in Finder, hold Shift, then drop them on the Talos action you want to run.",
             fillsContent: true
         ) {
-            VStack(alignment: .leading, spacing: TalosOnboarding.contentGap) {
-                finderDragPreview
-                    .frame(maxHeight: .infinity)
-                Text("Add repositories and tailor the wheel whenever you like by opening Talos again.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxHeight: .infinity)
+            finderDragPreview
+                .frame(maxHeight: .infinity)
         } actions: {
             Spacer()
             OnboardingButton(title: "Let’s go!", prominent: true, action: onFinish)
@@ -38,18 +31,18 @@ struct OnboardingReadyView: View {
             }
             Image(systemName: "arrow.right")
                 .font(.title3.weight(.medium))
-                .foregroundStyle(.tint)
+                .foregroundStyle(WheelAppearance.red)
             ZStack {
                 Circle()
-                    .fill(.tint.opacity(0.13))
+                    .fill(WheelAppearance.red.opacity(0.13))
                     .frame(width: 70, height: 70)
                 Image(systemName: "circle.hexagongrid.fill")
                     .font(.system(size: 34))
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(WheelAppearance.red)
             }
             Image(systemName: "arrow.right")
                 .font(.title3.weight(.medium))
-                .foregroundStyle(.tint)
+                .foregroundStyle(WheelAppearance.red)
             VStack(spacing: 7) {
                 Image(systemName: "play.circle.fill")
                     .font(.system(size: 34))
