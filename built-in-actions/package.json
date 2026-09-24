@@ -6,7 +6,7 @@
   "scripts": {
     "build": "talos build",
     "typecheck": "tsc --noEmit",
-    "package": "bash scripts/build-tools.sh && bash scripts/build-pdf-tool.sh && talos build && node scripts/package.mjs"
+    "package": "bash scripts/build-tools.sh && bash scripts/build-pdf-tool.sh && bash scripts/build-image-tool.sh && talos build && node scripts/package.mjs"
   },
   "devDependencies": {
     "@thom1606/talos-sdk": "3.2.0",

@@ -4,6 +4,7 @@ import { archive } from './operations/archive';
 import { compress } from './operations/compress';
 import { convert, homogeneous } from './operations/convert';
 import { cropVideo } from './operations/crop-video';
+import { cropImage } from './operations/crop-image';
 import { stopOperations } from './operations/shared';
 import { organize } from './operations/organize';
 
@@ -21,8 +22,10 @@ export async function activate(context: TalosContext) {
       case 'crop':
         talos.openWindow({ title: t('crop.title'), children: <CropWindow />, width: 480, height: 680,
           onRequest: async (method, payload, context, signal) => {
-            if (method !== 'cropVideo' || !payload || typeof payload !== 'object') throw new Error('Unknown crop request');
-            return cropVideo(context, payload as Record<string, unknown>, signal);
+            if (!payload || typeof payload !== 'object') throw new Error('Unknown crop request');
+            if (method === 'cropVideo') return cropVideo(context, payload as Record<string, unknown>, signal);
+            if (method === 'cropImage') return cropImage(context, payload as Record<string, unknown>, signal);
+            throw new Error('Unknown crop request');
           } });
         break;
       case 'organize': {
