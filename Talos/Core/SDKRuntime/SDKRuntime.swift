@@ -10,6 +10,7 @@ actor SDKRuntime {
     private let eventHandler: @Sendable (SDKRuntimeEvent) -> Void
     private var extensions: [String: LoadedExtension] = [:]
     private var sessions: [String: ExtensionSession] = [:]
+    private var pendingActivations: [String: (sessionID: UUID, continuation: CheckedContinuation<Void, Error>)] = [:]
 
     init(
         hostBundle: Bundle = .main,
@@ -147,6 +148,48 @@ actor SDKRuntime {
             sessions[tile.extensionBundleID] = nil
             session.terminate()
             throw error
+        }
+    }
+
+    /// Waits for the extension's activate function to finish before Shortcuts continues.
+    func activateAndWait(tile: Tile, files: [TalosInputFile]) async throws {
+        guard let loadedExtension = extensions[tile.extensionBundleID] else {
+            throw SDKRuntimeError.extensionNotLoaded(tile.extensionBundleID)
+        }
+        guard loadedExtension.manifest.commands.contains(where: { $0.name == tile.action }) else {
+            throw SDKRuntimeError.actionNotFound(tile.action, extensionID: tile.extensionBundleID)
+        }
+        let session = try session(for: loadedExtension)
+        let requestID = UUID().uuidString
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await withCheckedThrowingContinuation { continuation in
+                pendingActivations[requestID] = (session.id, continuation)
+                do {
+                    try session.activate(action: tile.action, config: tile.config, files: files, requestID: requestID)
+                } catch {
+                    pendingActivations[requestID] = nil
+                    sessions[tile.extensionBundleID] = nil
+                    session.terminate()
+                    continuation.resume(throwing: error)
+                }
+            }
+        } onCancel: {
+            Task { await self.cancelActivation(requestID: requestID) }
+        }
+    }
+
+    private func cancelActivation(requestID: String) {
+        pendingActivations.removeValue(forKey: requestID)?.continuation.resume(throwing: CancellationError())
+    }
+
+    func completeActivation(sessionID: UUID, requestID: String, error: String?) {
+        guard let pending = pendingActivations[requestID], pending.sessionID == sessionID else { return }
+        pendingActivations[requestID] = nil
+        if let error {
+            pending.continuation.resume(throwing: ShortcutActivationError.failed(error))
+        } else {
+            pending.continuation.resume()
         }
     }
 
@@ -341,6 +384,10 @@ actor SDKRuntime {
     }
 
     func sessionStopped(extensionID: String, sessionID: UUID) {
+        for (id, pending) in pendingActivations where pending.sessionID == sessionID {
+            pendingActivations[id] = nil
+            pending.continuation.resume(throwing: SDKRuntimeError.extensionProcessStopped)
+        }
         for key in modelTasks.keys where key.hasPrefix(sessionID.uuidString + ":") {
             modelTasks.removeValue(forKey: key)?.cancel()
         }
@@ -672,10 +719,10 @@ nonisolated private final class ExtensionSession {
 
     private(set) var inputFiles: [String: TalosInputFile] = [:]
 
-    func activate(action: String, config: [String: TileConfigValue], files: [TalosInputFile]) throws {
+    func activate(action: String, config: [String: TileConfigValue], files: [TalosInputFile], requestID: String? = nil) throws {
         guard process.isRunning else { throw SDKRuntimeError.extensionProcessStopped }
         for file in files { inputFiles[file.path] = file }
-        try send(.activate(.init(action: action, config: config, files: files)))
+        try send(.activate(.init(action: action, config: config, files: files, requestID: requestID)))
     }
 
     func respond(to requestID: String, with value: Bool) throws {
@@ -749,6 +796,7 @@ nonisolated enum SDKRuntimeEvent: Sendable, Equatable {
     case modelRequest(TalosModelRequest)
     case modelCancel(sessionID: UUID, requestID: String)
     case modelToolReply(TalosModelToolReply)
+    case activationComplete(sessionID: UUID, requestID: String, error: String?)
     case sessionStopped(extensionID: String, sessionID: UUID)
 }
 
@@ -931,6 +979,11 @@ nonisolated final class RuntimeOutputReader: @unchecked Sendable {
         }
 
         switch message.method {
+        case "activationComplete":
+            guard let id = message.requestID, !id.isEmpty else {
+                return console("Extension sent an invalid activation completion", level: .warn)
+            }
+            return .activationComplete(sessionID: sessionID, requestID: id, error: message.parameters.error)
         case "console":
             return console(
                 message.parameters.message ?? "",
@@ -1109,6 +1162,7 @@ nonisolated private enum RuntimeCommand: Encodable {
         case let .activate(context):
             try container.encode("activate", forKey: .type)
             try container.encode(context, forKey: .context)
+            try container.encodeIfPresent(context.requestID, forKey: .requestID)
         case .deactivate:
             try container.encode("deactivate", forKey: .type)
         case let .response(response):
@@ -1128,6 +1182,17 @@ nonisolated private struct ActivationContext: Encodable {
     let action: String
     let config: [String: TileConfigValue]
     let files: [TalosInputFile]
+    let requestID: String?
+
+    private enum CodingKeys: String, CodingKey { case action, config, files }
+}
+
+nonisolated private enum ShortcutActivationError: LocalizedError {
+    case failed(String)
+
+    var errorDescription: String? {
+        switch self { case let .failed(message): message }
+    }
 }
 
 nonisolated enum SDKRuntimeError: LocalizedError, Sendable {

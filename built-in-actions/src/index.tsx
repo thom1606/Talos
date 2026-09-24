@@ -58,6 +58,7 @@ export async function activate(context: TalosContext) {
   } catch (error) {
     console.error(error);
     talos.failed(error instanceof Error ? error.message : String(error));
+    throw error;
   }
 }
 export function deactivate() { stopOperations(); }

@@ -93,8 +93,10 @@ struct LocalProjectPackage: Decodable {
 
         return Set(WheelPreviewContext.allCases.filter { context in
             identifiers.contains { identifier in
+                if identifier.hasPrefix(".") { return context == .file }
                 guard let supportedType = UTType(identifier) else { return false }
-                return context.contentType.conforms(to: supportedType)
+                return context.contentType.conforms(to: supportedType) ||
+                    supportedType.conforms(to: context.contentType)
             }
         })
     }
@@ -132,6 +134,8 @@ private extension WheelPreviewContext {
         switch self {
         case .folder:
             .folder
+        case .file:
+            .item
         case .image:
             .image
         case .video:

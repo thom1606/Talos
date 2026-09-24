@@ -256,12 +256,25 @@ for await (const line of commands) {
       }
 
       activationQueue = activationQueue.then(async () => {
-        if (deactivated) return;
+        if (deactivated) {
+          if (command.requestID) process.stdout.write(`${JSON.stringify({
+            protocol: 'talos', version: 1, method: 'activationComplete', requestID: command.requestID,
+            parameters: { error: 'The extension stopped before the action ran.' },
+          })}\n`);
+          return;
+        }
+        let errorMessage;
         try {
           const extension = await loadExtension();
           await activationContext.run(context, () => extension.activate(context));
         } catch (error) {
+          errorMessage = error instanceof Error ? error.message : String(error);
           console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+        } finally {
+          if (command.requestID) process.stdout.write(`${JSON.stringify({
+            protocol: 'talos', version: 1, method: 'activationComplete', requestID: command.requestID,
+            parameters: { error: errorMessage },
+          })}\n`);
         }
       });
       continue;

@@ -39,7 +39,14 @@
       "icon": "crop",
       "description": "Crop an image or video.",
       "supportedFileTypes": [
-        "public.image",
+        "public.png",
+        "public.jpeg",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp",
         "public.movie"
       ]
     },
@@ -67,7 +74,8 @@
       "icon": "arrow.down.right.and.arrow.up.left",
       "description": "Reduce file size while keeping JPEG quality visually close to the original.",
       "supportedFileTypes": [
-        "public.image",
+        "public.png",
+        "public.jpeg",
         "public.movie",
         "public.audio"
       ]
@@ -78,7 +86,14 @@
       "icon": "arrow.trianglehead.2.clockwise.rotate.90",
       "description": "Convert a selection of images, videos, or audio files.",
       "supportedFileTypes": [
-        "public.image",
+        "public.png",
+        "public.jpeg",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp",
         "public.movie",
         "public.audio"
       ],
@@ -99,7 +114,14 @@
       "displayName": "PNG",
       "description": "Convert selected files to PNG.",
       "supportedFileTypes": [
-        "public.image"
+        "public.png",
+        "public.jpeg",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp"
       ]
     },
     {
@@ -107,7 +129,14 @@
       "displayName": "JPG",
       "description": "Convert selected files to JPG.",
       "supportedFileTypes": [
-        "public.image"
+        "public.png",
+        "public.jpeg",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp"
       ]
     },
     {
@@ -115,7 +144,14 @@
       "displayName": "TIFF",
       "description": "Convert selected files to TIFF.",
       "supportedFileTypes": [
-        "public.image"
+        "public.png",
+        "public.jpeg",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp"
       ]
     },
     {
@@ -123,7 +159,14 @@
       "displayName": "BMP",
       "description": "Convert selected files to BMP.",
       "supportedFileTypes": [
-        "public.image"
+        "public.png",
+        "public.jpeg",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp"
       ]
     },
     {

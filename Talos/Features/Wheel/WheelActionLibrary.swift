@@ -4,6 +4,13 @@ import UniformTypeIdentifiers
 
 @MainActor
 final class WheelActionLibrary {
+    struct ShortcutTile {
+        let id: String
+        let title: String
+        let tile: Tile
+        let command: ExtensionCommand
+    }
+
     private let runtime: SDKRuntime
     private let openSettings: () -> Void
     private let reportError: (String) -> Void
@@ -21,6 +28,63 @@ final class WheelActionLibrary {
 
     func update(extensions: [LoadedExtension]) {
         self.extensions = extensions
+    }
+
+    func shortcutTiles() -> [ShortcutTile] {
+        let commands = extensions.reduce(into: [String: (LoadedExtension, ExtensionCommand)]()) {
+            result, loaded in
+            for command in loaded.manifest.commands {
+                result["\(loaded.id).\(command.name)"] = (loaded, command)
+            }
+        }
+
+        func collect(_ items: [WheelItem], prefix: String = "") -> [ShortcutTile] {
+            items.flatMap { item -> [ShortcutTile] in
+                if let children = item.children {
+                    let folder = item.customTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return collect(children, prefix: prefix + (folder.map { "\($0) / " } ?? ""))
+                }
+                guard let actionID = item.actionID,
+                      let (loaded, command) = commands[actionID] else { return [] }
+                let title = prefix + displayTitle(for: item, fallback: command.displayName)
+                let subcommands = command.subcommands ?? []
+                if !subcommands.isEmpty {
+                    return subcommands.compactMap { name in
+                        guard let child = loaded.manifest.commands.first(where: { $0.name == name }),
+                              child.subcommands?.isEmpty != false else { return nil }
+                        return ShortcutTile(
+                            id: "\(item.id.uuidString)/\(name)",
+                            title: "\(title) / \(child.displayName)",
+                            tile: Tile(id: item.id, extensionBundleID: loaded.id, action: name, config: item.config),
+                            command: child
+                        )
+                    }
+                }
+                return [ShortcutTile(
+                    id: item.id.uuidString,
+                    title: title,
+                    tile: Tile(id: item.id, extensionBundleID: loaded.id, action: command.name, config: item.config),
+                    command: command
+                )]
+            }
+        }
+
+        return collect(WheelConfigurationStore.load().items)
+    }
+
+    func performShortcutTile(id: String, files: [DraggedFile]) async throws {
+        guard let tile = shortcutTiles().first(where: { $0.id == id }) else {
+            throw ShortcutTileError.unavailable
+        }
+        guard tile.command.supports(files) else {
+            throw ShortcutTileError.unsupportedFiles(tile.title)
+        }
+        let configuredTile = try configured(tile.tile)
+        try await runtime.activateAndWait(
+            tile: configuredTile,
+            files: files.map { .init(path: $0.url.path, name: $0.url.lastPathComponent,
+                               contentType: $0.contentType.identifier, accessURL: $0.url) }
+        )
     }
 
     func actions(for files: [DraggedFile]) -> [WheelAction] {
@@ -162,6 +226,18 @@ final class WheelActionLibrary {
     }
 }
 
+private enum ShortcutTileError: LocalizedError {
+    case unavailable
+    case unsupportedFiles(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .unavailable: "This tile is no longer available in Talos."
+        case let .unsupportedFiles(title): "The selected files are not supported by \(title)."
+        }
+    }
+}
+
 private extension ExtensionCommand {
     func supports(_ files: [DraggedFile]) -> Bool {
         guard !files.isEmpty else { return false }
@@ -169,6 +245,10 @@ private extension ExtensionCommand {
 
         return files.allSatisfy { file in
             supportedFileTypes.contains { identifier in
+                if identifier.hasPrefix(".") {
+                    return !file.contentType.conforms(to: .folder) &&
+                        file.url.lastPathComponent.lowercased().hasSuffix(identifier.lowercased())
+                }
                 guard let supportedType = UTType(identifier) else { return false }
                 return file.contentType.conforms(to: supportedType)
             }

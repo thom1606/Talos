@@ -3,6 +3,7 @@ import Foundation
 
 enum WheelPreviewContext: String, CaseIterable, Identifiable {
     case folder
+    case file
     case image
     case video
     case audio
@@ -14,6 +15,8 @@ enum WheelPreviewContext: String, CaseIterable, Identifiable {
         switch self {
         case .folder:
             String(localized: "Folder")
+        case .file:
+            String(localized: "File")
         case .image:
             String(localized: "Image")
         case .video:
@@ -29,6 +32,8 @@ enum WheelPreviewContext: String, CaseIterable, Identifiable {
         switch self {
         case .folder:
             "folder"
+        case .file:
+            "doc"
         case .image:
             "photo"
         case .video:

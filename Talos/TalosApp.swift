@@ -10,6 +10,13 @@ import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    static weak var current: AppDelegate?
+
+    override init() {
+        super.init()
+        Self.current = self
+    }
+
     private lazy var toastController = ToastController()
     private lazy var dialogController = DialogController()
     private lazy var extensionWindowController = ExtensionWindowController()
@@ -56,6 +63,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowCloseObserver: NSObjectProtocol?
     fileprivate let advancedSettingsModel = AdvancedSettingsModel()
     private var isTerminating = false
+
+    func shortcutTiles() async -> [WheelActionLibrary.ShortcutTile] {
+        if extensionLoadTask == nil { reloadExtensions() }
+        await extensionLoadTask?.value
+        return actionLibrary.shortcutTiles()
+    }
+
+    func runShortcutTile(id: String, files: [DraggedFile]) async throws {
+        if extensionLoadTask == nil { reloadExtensions() }
+        await extensionLoadTask?.value
+        try await actionLibrary.performShortcutTile(id: id, files: files)
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !ProcessInfo.processInfo.arguments.contains("--background"),
@@ -291,6 +310,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await sdkRuntime.cancelModelRequest(sessionID: sessionID, requestID: requestID) }
         case let .modelToolReply(reply):
             Task { await sdkRuntime.completeModelToolRequest(reply) }
+        case let .activationComplete(sessionID, requestID, error):
+            Task { await sdkRuntime.completeActivation(sessionID: sessionID, requestID: requestID, error: error) }
         case .console:
             break // Console output is handled directly on the pipe's callback queue.
         }
