@@ -93,8 +93,7 @@ export default function CropWindow() {
       context.drawImage(photo.current!, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
       const isPNG = /\.png$/i.test(image.name);
       const name = image.name.replace(/\.[^.]+$/, '') + (isPNG ? '-cropped.png' : '-cropped.jpg');
-      const output = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-        blob => blob ? resolve(blob) : reject(new Error(t('crop.cannotCreate'))), isPNG ? 'image/png' : 'image/jpeg', 0.95));
+      const output = await encodeCrop(canvas, isPNG ? 'image/png' : 'image/jpeg');
       const bridge = (window as unknown as { __talosWindow: { request(message: { method: string; index: number }): Promise<unknown> } }).__talosWindow;
       await bridge.request({ method: 'setSaveInput', index: files.findIndex(file => file.path === selectedPath) });
       const result = await talosWindow.saveFile(output, name);
@@ -174,6 +173,24 @@ export default function CropWindow() {
     <footer><Button disabled={!image || busy} onClick={() => { if (image) setCrop(fitCrop(image, null)); setRatio(null); setError(''); }}>{t('crop.reset')}</Button>
       <Button variant="primary" disabled={!image || busy || (image.video && !videoReady)} onClick={save}>{busy ? t('crop.working') : t('crop.saveCopy')}</Button></footer>
   </main>;
+}
+
+async function encodeCrop(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
+  const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, type, 0.95));
+  if (blob) return blob;
+  // WebKit can return null from the asynchronous encoder for an otherwise valid canvas.
+  const dataURL = canvas.toDataURL(type, 0.95);
+  const encoded = dataURL.slice(dataURL.indexOf(',') + 1);
+  if (!dataURL.startsWith(`data:${type};base64,`) || !encoded) throw new Error(t('crop.cannotCreate'));
+  const binary = atob(encoded);
+  const chunks: BlobPart[] = [];
+  for (let offset = 0; offset < binary.length; offset += 8192) {
+    const part = binary.slice(offset, offset + 8192);
+    const bytes = new Uint8Array(part.length);
+    for (let index = 0; index < part.length; index++) bytes[index] = part.charCodeAt(index);
+    chunks.push(bytes);
+  }
+  return new Blob(chunks, { type });
 }
 
 async function showFirstVideoFrame(element: HTMLVideoElement): Promise<string> {
