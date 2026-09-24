@@ -5,6 +5,8 @@
 Drag files, hold **Shift**, and drop them on an action. Talos puts file tools
 right under your pointer in a configurable action wheel.
 
+[Download Talos for macOS](https://thom1606.github.io/Talos/) · [Latest release](https://github.com/thom1606/Talos/releases/latest)
+
 This directory contains the macOS app. To build extensions, see the
 [Talos SDK](https://github.com/thom1606/talos-sdk).
 
@@ -26,14 +28,6 @@ which actions are available for folders, images, video, audio and PDFs.
 Talos keeps running when you close settings. Open the app again to return to
 settings. Extensions can show native dialogs, toasts, Markdown content, and
 React interfaces inside native windows.
-
-## Shortcuts
-
-Add **Run Talos Tile** in the Shortcuts app, choose an action, and pass files to
-it. Configured wheel tiles appear alongside installed extension actions that
-are not on the wheel. Convert formats appear as separate actions. Shortcuts
-uses a wheel tile's saved settings. Actions outside the wheel use extension
-defaults; add an action to the wheel in Talos to configure its settings.
 
 ## Repositories and updates
 

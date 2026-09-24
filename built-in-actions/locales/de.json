@@ -1,0 +1,119 @@
+{
+  "displayName": "Talos",
+  "commands": {
+    "crop": {
+      "displayName": "Zuschneiden",
+      "description": "Ein Bild oder Video zuschneiden."
+    },
+    "archive": {
+      "displayName": "Archivieren",
+      "description": "Ein ZIP-Archiv der ausgewählten Dateien erstellen."
+    },
+    "compress": {
+      "displayName": "Komprimieren",
+      "description": "Die Dateigröße bei kaum sichtbarem Qualitätsverlust von JPEG-Bildern verringern."
+    },
+    "convert": {
+      "displayName": "Konvertieren",
+      "description": "Ausgewählte Bilder, PDFs, Videos oder Audiodateien konvertieren."
+    },
+    "convert-png": {
+      "displayName": "PNG",
+      "description": "Ausgewählte Dateien in PNG konvertieren."
+    },
+    "convert-jpg": {
+      "displayName": "JPG",
+      "description": "Ausgewählte Dateien in JPG konvertieren."
+    },
+    "convert-docx": {
+      "displayName": "DOCX",
+      "description": "Ausgewählte PDFs in bearbeitbare DOCX-Dokumente konvertieren."
+    },
+    "convert-tiff": {
+      "displayName": "TIFF",
+      "description": "Ausgewählte Dateien in TIFF konvertieren."
+    },
+    "convert-bmp": {
+      "displayName": "BMP",
+      "description": "Ausgewählte Dateien in BMP konvertieren."
+    },
+    "convert-mp4": {
+      "displayName": "MP4",
+      "description": "Ausgewählte Dateien in MP4 konvertieren."
+    },
+    "convert-mov": {
+      "displayName": "MOV",
+      "description": "Ausgewählte Dateien in MOV konvertieren."
+    },
+    "convert-m4a": {
+      "displayName": "M4A",
+      "description": "Ausgewählte Dateien in M4A konvertieren."
+    },
+    "convert-wav": {
+      "displayName": "WAV",
+      "description": "Ausgewählte Dateien in WAV konvertieren."
+    },
+    "convert-flac": {
+      "displayName": "FLAC",
+      "description": "Ausgewählte Dateien in FLAC konvertieren."
+    },
+    "organize": {
+      "displayName": "Organisieren",
+      "description": "Ausgewählte Elemente mit Apple Intelligence in Ordner sortieren."
+    }
+  },
+  "crop": {
+    "title": "Zuschneiden",
+    "free": "Frei",
+    "choosePrompt": "Kein Bild ausgewählt",
+    "chooseImage": "Bild auswählen…",
+    "selectionHelp": "Zuschneidebereich. Mit den Pfeiltasten verschieben; mit Umschalt in Zehnerschritten.",
+    "opening": "Bild wird geöffnet…",
+    "emptyTitle": "Dein Bild, genau der gewünschte Ausschnitt.",
+    "options": "Zuschneideoptionen",
+    "aspectRatio": "Seitenverhältnis",
+    "width": "Breite des Ausschnitts",
+    "height": "Höhe des Ausschnitts",
+    "widthShort": "Breite",
+    "heightShort": "Höhe",
+    "pixels": "px",
+    "original": "{width} × {height} Originalgröße · An den Rändern ziehen, um zuzuschneiden",
+    "formats": "PNG-Dateien bleiben PNG; andere Bilder werden als JPEG gespeichert.",
+    "reset": "Zurücksetzen",
+    "working": "Wird verarbeitet…",
+    "saveCopy": "Anwenden",
+    "saved": "{name} gespeichert",
+    "cannotCreate": "Das zugeschnittene Bild konnte nicht erstellt werden",
+    "noInput": "Ziehe ein Bild auf diese Aktion, um es zuzuschneiden.",
+    "cannotOpen": "Dieses Bild konnte nicht geöffnet werden",
+    "videoUnsupported": "Videos können nur in den Formaten MP4, MOV und M4V zugeschnitten werden. Konvertiere andere Formate zuerst.",
+    "videoHint": "Speichert eine zugeschnittene Kopie im selben Container. Das Video wird neu kodiert; der Ton bleibt erhalten.",
+    "play": "Vorschau abspielen",
+    "pause": "Vorschau anhalten",
+    "seek": "Videoposition",
+    "videoError": "Für dieses Video ist keine Vorschau möglich. Konvertiere es zuerst in MP4."
+  },
+  "actions": {
+    "noFiles": "Wähle Dateien für diese Aktion aus."
+  },
+  "archive": {
+    "working": "Archiv wird erstellt…",
+    "done": "Archiv neben deinen Dateien gespeichert."
+  },
+  "compress": {
+    "working": "Datei {current} von {total} wird komprimiert…",
+    "doneOne": "1 Datei komprimiert · {size} gespart",
+    "doneMany": "{count} Dateien komprimiert · {size} gespart",
+    "unchanged": "Keine kleinere Kopie möglich. Die Originale bleiben unverändert.",
+    "partial": "{reduced} komprimiert; {skipped} unverändert; {failed} fehlgeschlagen. Die Originale bleiben unverändert."
+  },
+  "convert": {
+    "working": "Wird konvertiert…",
+    "done": "{count} konvertierte Kopien neben den Originalen gespeichert."
+  },
+  "organize": {
+    "sorting": "Intern sortieren…",
+    "moving": "Elemente verschieben…",
+    "done": "Dateien verschoben."
+  }
+}
