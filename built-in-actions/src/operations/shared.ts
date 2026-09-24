@@ -11,7 +11,7 @@ export const active = new Set<AbortController>();
 export const lifecycle = new AbortController();
 export function stopOperations() { lifecycle.abort(); for (const controller of active) controller.abort(); }
 
-export async function tool(name: 'ffmpeg' | 'ffprobe' | 'jpegtran' | 'cjpeg' | 'djpeg' | 'pdf-tool'): Promise<string> {
+export async function tool(name: 'ffmpeg' | 'ffprobe' | 'jpegtran' | 'cjpeg' | 'djpeg' | 'pdf-tool' | 'image-tool'): Promise<string> {
   const executable = join(packageRoot, 'vendor', 'bin', process.arch === 'arm64' ? 'arm64' : 'x86_64', name);
   // Extracted .talos files are not executable until the bundled binary is needed.
   await chmod(executable, 0o755);

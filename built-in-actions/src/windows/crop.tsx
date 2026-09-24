@@ -86,18 +86,8 @@ export default function CropWindow() {
         await talosWindow.close();
         return;
       }
-      const canvas = document.createElement('canvas'); canvas.width = rect.width; canvas.height = rect.height;
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error(t('crop.cannotCreate'));
-      if (!/\.png$/i.test(image.name)) { context.fillStyle = "white"; context.fillRect(0, 0, rect.width, rect.height); }
-      context.drawImage(photo.current!, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
-      const isPNG = /\.png$/i.test(image.name);
-      const name = image.name.replace(/\.[^.]+$/, '') + (isPNG ? '-cropped.png' : '-cropped.jpg');
-      const output = await encodeCrop(canvas, isPNG ? 'image/png' : 'image/jpeg');
-      const bridge = (window as unknown as { __talosWindow: { request(message: { method: string; index: number }): Promise<unknown> } }).__talosWindow;
-      await bridge.request({ method: 'setSaveInput', index: files.findIndex(file => file.path === selectedPath) });
-      const result = await talosWindow.saveFile(output, name);
-      if (result) await talosWindow.close();
+      await talosWindow.invoke<string>('cropImage', { index: files.findIndex(file => file.path === selectedPath), rect });
+      await talosWindow.close();
     } catch (e) { setError(String(e instanceof Error ? e.message : e)); }
     finally { setBusy(false); }
   }
@@ -175,24 +165,6 @@ export default function CropWindow() {
   </main>;
 }
 
-async function encodeCrop(canvas: HTMLCanvasElement, type: string): Promise<Blob> {
-  const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, type, 0.95));
-  if (blob) return blob;
-  // WebKit can return null from the asynchronous encoder for an otherwise valid canvas.
-  const dataURL = canvas.toDataURL(type, 0.95);
-  const encoded = dataURL.slice(dataURL.indexOf(',') + 1);
-  if (!dataURL.startsWith(`data:${type};base64,`) || !encoded) throw new Error(t('crop.cannotCreate'));
-  const binary = atob(encoded);
-  const chunks: BlobPart[] = [];
-  for (let offset = 0; offset < binary.length; offset += 8192) {
-    const part = binary.slice(offset, offset + 8192);
-    const bytes = new Uint8Array(part.length);
-    for (let index = 0; index < part.length; index++) bytes[index] = part.charCodeAt(index);
-    chunks.push(bytes);
-  }
-  return new Blob(chunks, { type });
-}
-
 async function showFirstVideoFrame(element: HTMLVideoElement): Promise<string> {
   const frame = new Promise<string>((resolve, reject) => element.requestVideoFrameCallback(() => {
     try {
@@ -235,18 +207,11 @@ async function loadImage(input: TalosFile): Promise<CropImage> {
       video.preload = 'metadata'; video.src = dataURL;
     });
   }
-  // Keep the image on this page's origin so WebKit permits canvas export.
-  const imageURL = URL.createObjectURL(await talosWindow.readFile(input));
-  try {
-    const decoded = new Image(); decoded.src = imageURL;
-    await decoded.decode();
-    const width = decoded.naturalWidth, height = decoded.naturalHeight;
-    if (!width || !height) throw new Error(t('crop.cannotOpen'));
-    return { name: input.name, dataURL: imageURL, width, height, video: false };
-  } catch (error) {
-    URL.revokeObjectURL(imageURL);
-    throw error;
-  }
+  const decoded = new Image(); decoded.src = dataURL;
+  await decoded.decode();
+  const width = decoded.naturalWidth, height = decoded.naturalHeight;
+  if (!width || !height) throw new Error(t('crop.cannotOpen'));
+  return { name: input.name, dataURL, width, height, video: false };
 }
 
 function Dimension({ label, value, max, disabled, onChange }: {
