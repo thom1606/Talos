@@ -235,11 +235,18 @@ async function loadImage(input: TalosFile): Promise<CropImage> {
       video.preload = 'metadata'; video.src = dataURL;
     });
   }
-  const decoded = new Image(); decoded.src = dataURL;
-  await decoded.decode();
-  const width = decoded.naturalWidth, height = decoded.naturalHeight;
-  if (!width || !height) throw new Error(t('crop.cannotOpen'));
-  return { name: input.name, dataURL, width, height, video: false };
+  // Keep the image on this page's origin so WebKit permits canvas export.
+  const imageURL = URL.createObjectURL(await talosWindow.readFile(input));
+  try {
+    const decoded = new Image(); decoded.src = imageURL;
+    await decoded.decode();
+    const width = decoded.naturalWidth, height = decoded.naturalHeight;
+    if (!width || !height) throw new Error(t('crop.cannotOpen'));
+    return { name: input.name, dataURL: imageURL, width, height, video: false };
+  } catch (error) {
+    URL.revokeObjectURL(imageURL);
+    throw error;
+  }
 }
 
 function Dimension({ label, value, max, disabled, onChange }: {
