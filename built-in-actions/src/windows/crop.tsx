@@ -23,11 +23,15 @@ export default function CropWindow() {
   const [videoTime, setVideoTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoPoster, setVideoPoster] = useState<string | null>(null);
+  const [showVideoPoster, setShowVideoPoster] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 400, height: 400 });
   const stage = useRef<HTMLDivElement>(null);
   const photo = useRef<HTMLImageElement>(null);
   const drag = useRef<Drag | null>(null);
   const video = useRef<HTMLVideoElement>(null);
+  const primingVideo = useRef(false);
 
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height }));
@@ -39,7 +43,8 @@ export default function CropWindow() {
     const file = images.find(file => file.path === selectedPath);
     let cancelled = false;
     let previewURL: string | undefined;
-    setImage(null); setError(''); setVideoTime(0); setVideoDuration(0); setVideoPlaying(false);
+    setImage(null); setError(''); setVideoTime(0); setVideoDuration(0); setVideoPlaying(false); setVideoReady(false);
+    setVideoPoster(null); setShowVideoPoster(false); primingVideo.current = false;
     if (!file) { setBusy(false); return; }
     setBusy(true);
     loadImage(file).then(next => {
@@ -107,12 +112,23 @@ export default function CropWindow() {
     <div className="stage" ref={stage}>
       {image ? <div className="image-frame" style={{ width: image.width * scale, height: image.height * scale }}>
         {image.video ? <video ref={video} src={image.dataURL} muted loop playsInline preload="metadata" aria-label={image.name}
-          onLoadedMetadata={event => setVideoDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
-          onLoadedData={event => { if (event.currentTarget.currentTime === 0 && event.currentTarget.duration > 0.01) event.currentTarget.currentTime = 0.01; }}
+          onLoadedMetadata={event => {
+            const element = event.currentTarget;
+            const duration = element.duration;
+            setVideoDuration(Number.isFinite(duration) ? duration : 0);
+            primingVideo.current = true;
+            showFirstVideoFrame(element).then(poster => {
+              if (element.isConnected) {
+                primingVideo.current = false; setVideoTime(element.currentTime);
+                setVideoPoster(poster); setShowVideoPoster(true); setVideoReady(true);
+              }
+            }).catch(() => { if (element.isConnected) { primingVideo.current = false; setVideoReady(true); setError(t('crop.videoError')); } });
+          }}
           onTimeUpdate={event => setVideoTime(event.currentTarget.currentTime)}
           onSeeked={event => setVideoTime(event.currentTarget.currentTime)}
-          onPlay={() => setVideoPlaying(true)} onPause={() => setVideoPlaying(false)}
+          onPlay={() => { if (!primingVideo.current) { setShowVideoPoster(false); setVideoPlaying(true); } }} onPause={() => setVideoPlaying(false)}
           onError={() => setError(t('crop.videoError'))} /> : <img ref={photo} src={image.dataURL} alt={image.name} draggable={false} />}
+        {image.video && videoPoster && showVideoPoster && <img className="video-poster" src={videoPoster} alt="" draggable={false} />}
         <svg className="shade" viewBox={`0 0 ${image.width} ${image.height}`} aria-hidden="true">
           <path fillRule="evenodd" d={`M0 0H${image.width}V${image.height}H0Z M${crop.x} ${crop.y}h${crop.width}v${crop.height}h${-crop.width}Z`} />
         </svg>
@@ -135,13 +151,14 @@ export default function CropWindow() {
         <Text as="p" tone="secondary">{t('crop.noInput')}</Text></div>}
     </div>
     <section className="controls" aria-label={t('crop.options')}>
-      {image?.video && <div className="video-controls"><Button className="video-play-button" aria-label={videoPlaying ? t('crop.pause') : t('crop.play')} disabled={busy} onClick={() => {
+      {image?.video && !videoReady && <Text as="p" size="caption" tone="secondary">{t('crop.opening')}</Text>}
+      {image?.video && videoReady && <div className="video-controls"><Button className="video-play-button" aria-label={videoPlaying ? t('crop.pause') : t('crop.play')} disabled={busy} onClick={() => {
         if (video.current?.paused) void video.current.play().catch(() => setError(t('crop.videoError')));
         else video.current?.pause();
       }}>{videoPlaying ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}</Button>
         <input className="video-seek" type="range" min="0" max={videoDuration || 1} step="0.01" value={Math.min(videoTime, videoDuration || 1)}
           aria-label={t('crop.seek')} aria-valuetext={formatTime(videoTime)} disabled={busy || !videoDuration}
-          onChange={event => { const time = Number(event.currentTarget.value); if (video.current) video.current.currentTime = time; setVideoTime(time); }} />
+          onChange={event => { const time = Number(event.currentTarget.value); setShowVideoPoster(false); if (video.current) video.current.currentTime = time; setVideoTime(time); }} />
         <Text as="span" size="caption" tone="secondary" className="video-time">{formatTime(videoTime)} / {formatTime(videoDuration)}</Text>
       </div>}
       <div className="option-row"><Text size="callout" textKey="crop.aspectRatio" /><div className="talos-segments" role="group" aria-label={t('crop.aspectRatio')}>
@@ -155,8 +172,29 @@ export default function CropWindow() {
       {error && <Text as="p" size="subheadline" tone="danger" className="message" role="alert">{error}</Text>}
     </section>
     <footer><Button disabled={!image || busy} onClick={() => { if (image) setCrop(fitCrop(image, null)); setRatio(null); setError(''); }}>{t('crop.reset')}</Button>
-      <Button variant="primary" disabled={!image || busy} onClick={save}>{busy ? t('crop.working') : t('crop.saveCopy')}</Button></footer>
+      <Button variant="primary" disabled={!image || busy || (image.video && !videoReady)} onClick={save}>{busy ? t('crop.working') : t('crop.saveCopy')}</Button></footer>
   </main>;
+}
+
+async function showFirstVideoFrame(element: HTMLVideoElement): Promise<string> {
+  const frame = new Promise<string>((resolve, reject) => element.requestVideoFrameCallback(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, 1280 / Math.max(element.videoWidth, element.videoHeight));
+      canvas.width = Math.round(element.videoWidth * scale);
+      canvas.height = Math.round(element.videoHeight * scale);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Cannot capture video frame');
+      context.drawImage(element, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
+    } catch (error) { reject(error); }
+  }));
+  try {
+    await element.play();
+    return await frame;
+  } finally {
+    element.pause();
+  }
 }
 
 

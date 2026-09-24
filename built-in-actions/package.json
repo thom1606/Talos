@@ -30,7 +30,8 @@
       "en": "locales/en.json",
       "nl": "locales/nl.json",
       "fr": "locales/fr.json",
-      "es": "locales/es.json"
+      "es": "locales/es.json",
+      "de": "locales/de.json"
     }
   },
   "commands": [

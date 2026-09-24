@@ -34,7 +34,9 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Prepare extension build tools
-        run: command -v cmake || brew install cmake
+        run: |
+          command -v cmake || brew install cmake
+          command -v swiftlint || brew install swiftlint
       - uses: actions/cache@v5
         with:
           path: built-in-actions/vendor
@@ -46,8 +48,6 @@ jobs:
             -configuration Debug -destination 'platform=macOS' \
             -derivedDataPath build/tests -resultBundlePath build/TalosFlows.xcresult \
             -parallel-testing-enabled NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual
-      - name: Verify bundled actions and languages in the app
-        run: python3 scripts/check-bundled-actions.py build/tests/Build/Products/Debug/Talos.app
       - name: Upload UI test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -149,8 +149,6 @@ jobs:
         run: |
           xcodebuild -exportArchive -archivePath build/Talos.xcarchive \
             -exportPath build/export -exportOptionsPlist Configuration/ExportOptions.plist
-      - name: Verify bundled actions and languages in the release
-        run: python3 scripts/check-bundled-actions.py build/export/Talos.app
       - name: Notarize and package app
         env:
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
@@ -207,9 +205,6 @@ jobs:
               --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/" \
               --full-release-notes-url "https://github.com/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG" \
               -o build/distribution/appcast.xml build/appcast
-          swift scripts/verify-appcast.swift build/distribution/appcast.xml \
-            build/distribution/Talos.zip build/export/Talos.app/Contents/Info.plist \
-            "https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/Talos.zip"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

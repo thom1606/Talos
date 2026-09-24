@@ -285,6 +285,16 @@ final class TalosFlows: XCTestCase {
         XCTAssertTrue(window.waitForExistence(timeout: 15))
         let preview = window.buttons["Play preview"]
         XCTAssertTrue(preview.waitForExistence(timeout: 15), "Local video metadata must load without copying all bytes through JSON")
+        let screenshot = window.screenshot()
+        let firstFrame = XCTAttachment(screenshot: screenshot)
+        firstFrame.name = "Video crop before Play"
+        firstFrame.lifetime = .keepAlways
+        add(firstFrame)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: screenshot.pngRepresentation))
+        let color = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 3)?.usingColorSpace(.deviceRGB))
+        XCTAssertGreaterThan(max(color.redComponent, color.greenComponent, color.blueComponent)
+            - min(color.redComponent, color.greenComponent, color.blueComponent), 0.15,
+            "The colorful first video frame must be visible before Play")
         preview.click()
         XCTAssertTrue(window.buttons["Pause preview"].waitForExistence(timeout: 5))
         let width = window.textFields["Width"], height = window.textFields["Height"]

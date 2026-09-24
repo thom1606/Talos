@@ -93,10 +93,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 84E196D130610D2D008E80BF /* Build configuration list for PBXNativeTarget "Talos" */;
 			buildPhases = (
+				E50000000000000000000002 /* SwiftLint */,
 				84E196C230610D2C008E80BF /* Sources */,
 				84E196C330610D2C008E80BF /* Frameworks */,
 				84E196C430610D2C008E80BF /* Resources */,
 				E50000000000000000000001 /* Embed JavaScript Runtime */,
+				E50000000000000000000003 /* Build Bundled Extensions */,
 			);
 			buildRules = (
 			);
@@ -150,6 +152,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				de,
 				nl,
 				fr,
 				es,
@@ -187,6 +190,18 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		E50000000000000000000002 /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ();
+			name = SwiftLint;
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\nif command -v swiftlint >/dev/null 2>&1; then\n  cd \"$SRCROOT\"\n  swiftlint lint --lenient --no-cache --quiet\nelse\n  echo \"warning: SwiftLint is not installed; run brew install swiftlint\"\nfi";
+		};
 		E2E00000000000000000000C /* Prepare UI Media Fixtures */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -197,7 +212,7 @@
 			outputPaths = ();
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "bash \"$SRCROOT/scripts/prepare-ui-fixtures.sh\"";
+			shellScript = "# The UI runner is sandboxed. Create input files in build products so Talos can\n# save beside them without a Save panel, while the runner only needs read access.\nset -euo pipefail\nroot=\"${BUILT_PRODUCTS_DIR:?}/TalosUITestFixtures\"\nrm -rf \"$root\"\nfor test in crop convert compress video archive; do\n  directory=\"$root/$test\"\n  mkdir -p \"$directory\"\n  cp \"${SRCROOT:?}/TalosUITests/Fixtures/sample.png\" \"$directory/sample.png\"\ndone\ncp \"$SRCROOT/TalosUITests/Fixtures/sample.mp4\" \"$root/video/sample.mp4\"\nprintf 'A second selected file' > \"$root/archive/notes.txt\"";
 		};
 		E50000000000000000000001 /* Embed JavaScript Runtime */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -206,7 +221,6 @@
 			files = (
 			);
 			inputPaths = (
-				"$(SRCROOT)/scripts/embed-node.sh",
 				"$(SRCROOT)/Configuration/Node.entitlements",
 			);
 			name = "Embed JavaScript Runtime";
@@ -216,7 +230,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "bash \"$SRCROOT/scripts/embed-node.sh\"\nbash \"$SRCROOT/scripts/embed-extensions.sh\"";
+			shellScript = "\n# Build-time only. Users receive this runtime inside the signed Talos app, so\n# extensions never depend on a locally installed Node version.\nset -euo pipefail\n\nreadonly node_version=\"24.14.1\"\nreadonly cache_directory=\"${DERIVED_FILE_DIR:?}/node-${node_version}\"\nreadonly helpers_directory=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Helpers\"\nreadonly resources_directory=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\n\nmkdir -p \"${cache_directory}\" \"${helpers_directory}\"\n\nnode_binaries=()\nfor architecture in ${ARCHS}; do\n    case \"${architecture}\" in\n        arm64) node_architecture=\"arm64\" ;;\n        x86_64) node_architecture=\"x64\" ;;\n        *)\n            echo \"Unsupported Node architecture: ${architecture}\" >&2\n            exit 1\n            ;;\n    esac\n\n    archive_name=\"node-v${node_version}-darwin-${node_architecture}\"\n    archive_path=\"${cache_directory}/${archive_name}.tar.gz\"\n    extracted_node=\"${cache_directory}/${archive_name}/bin/node\"\n\n    if [[ ! -x \"${extracted_node}\" ]]; then\n        curl --fail --location --proto '=https' --tlsv1.2 \\\n            \"https://nodejs.org/dist/v${node_version}/SHASUMS256.txt\" \\\n            --output \"${cache_directory}/SHASUMS256.txt\"\n        curl --fail --location --proto '=https' --tlsv1.2 \\\n            \"https://nodejs.org/dist/v${node_version}/${archive_name}.tar.gz\" \\\n            --output \"${archive_path}\"\n\n        (\n            cd \"${cache_directory}\"\n            awk -v archive=\"${archive_name}.tar.gz\" \\\n                '$2 == archive { print }' SHASUMS256.txt > expected.sha256\n            test -s expected.sha256\n            shasum -a 256 -c expected.sha256\n            tar -xzf \"${archive_name}.tar.gz\"\n        )\n    fi\n\n    node_binaries+=(\"${extracted_node}\")\ndone\n\ndestination=\"${helpers_directory}/node\"\nif [[ ${#node_binaries[@]} -eq 1 ]]; then\n    cp \"${node_binaries[0]}\" \"${destination}\"\nelse\n    /usr/bin/lipo -create \"${node_binaries[@]}\" -output \"${destination}\"\nfi\nchmod 755 \"${destination}\"\n\nsigning_identity=\"${EXPANDED_CODE_SIGN_IDENTITY:--}\"\nif [[ -z \"${signing_identity}\" ]]; then\n    signing_identity=\"-\"\nfi\n/usr/bin/codesign --force --sign \"${signing_identity}\" --options runtime \\\n    --entitlements \"${SRCROOT}/Configuration/Node.entitlements\" \\\n    \"${destination}\"\n\ncp \"${cache_directory}/${archive_name}/LICENSE\" \\\n    \"${resources_directory}/Node-LICENSE.txt\"";
+		};
+		E50000000000000000000003 /* Build Bundled Extensions */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ();
+			name = "Build Bundled Extensions";
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/BundledExtensions/talos-actions.talos",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "# Package extension-owned tools into the app; no codecs or media logic are linked into Talos.\nset -euo pipefail\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\ncd \"${SRCROOT:?}/built-in-actions\"\ncommand -v npm >/dev/null || { echo 'Node/npm is required to build bundled extensions.' >&2; exit 1; }\ncommand -v cmake >/dev/null || { echo 'CMake is required to build extension codecs.' >&2; exit 1; }\ndependency_hash=\"$(shasum -a 256 package-lock.json | cut -d ' ' -f 1)\"\nif [[ ! -f node_modules/.talos-lock ]] || [[ \"$(cat node_modules/.talos-lock)\" != \"$dependency_hash\" ]]; then\n  npm ci --cache \"${DERIVED_FILE_DIR}/npm-cache\"\n  printf '%s' \"$dependency_hash\" > node_modules/.talos-lock\nfi\nnpm run typecheck\nnpm run package\nresources=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/BundledExtensions\"\nmkdir -p \"$resources\"\ncp dist/talos-actions.talos \"$resources/talos-actions.talos\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 

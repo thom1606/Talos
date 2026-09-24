@@ -3,6 +3,7 @@
 .stage { flex: 1; min-height: 150px; margin: 8px 18px; display: flex; align-items: center; justify-content: center; }
 .image-frame { position: relative; flex: none; user-select: none; }
 .image-frame img, .image-frame video { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.image-frame .video-poster { position: absolute; inset: 0; }
 .crop-selection { position: absolute; outline: 2px solid var(--talosColor); cursor: move; touch-action: none; }
 .grid { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .grid i { position: absolute; background: #ffffff70; box-shadow: 0 0 1px #0008; }
