@@ -9,6 +9,12 @@ test -d "$source_folder/Talos.app"
 test -f "$repo_root/assets/dmg-background.png"
 command -v create-dmg >/dev/null
 
+# Keep Finder from placing its support folder in the icon view, including on CI.
+mkdir -p "$source_folder/.background"
+cp "$repo_root/assets/dmg-background.png" "$source_folder/.background/dmg-background.png"
+chflags hidden "$source_folder/.background"
+SetFile -a V "$source_folder/.background"
+
 create-dmg \
   --overwrite \
   --volname Talos \
@@ -30,6 +36,9 @@ cleanup() {
 trap cleanup EXIT
 hdiutil attach -readonly -nobrowse -mountpoint "$mount_point" "$output" >/dev/null
 cmp "$repo_root/assets/dmg-background.png" "$mount_point/.background/dmg-background.png"
+folder_flags="$(stat -f '%f' "$mount_point/.background")"
+(( (folder_flags & 0x8000) != 0 ))
+[[ "$(GetFileInfo -a "$mount_point/.background")" == *V* ]]
 test -s "$mount_point/.DS_Store"
 strings "$mount_point/.DS_Store" | grep -F 'dmg-background.png' >/dev/null
 test -d "$mount_point/Talos.app"
