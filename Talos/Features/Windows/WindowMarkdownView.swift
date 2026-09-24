@@ -1,18 +1,21 @@
+import AppKit
 import SwiftUI
 
 /// Foundation parses Markdown; these views supply native layout for its block intents.
 struct WindowMarkdownView: View {
     private let blocks: [WindowMarkdownBlock]
+    private let sourceFile: URL?
 
-    init(content: String) {
+    init(content: String, sourceFile: URL? = nil) {
         blocks = WindowMarkdownBlock.parse(content)
+        self.sourceFile = sourceFile
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(blocks) { block in
-                    WindowMarkdownBlockView(block: block)
+                    WindowMarkdownBlockView(block: block, sourceFile: sourceFile)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -66,11 +69,12 @@ struct WindowMarkdownBlock: Identifiable {
 
 private struct WindowMarkdownBlockView: View {
     let block: WindowMarkdownBlock
+    let sourceFile: URL?
 
     var body: some View {
         switch block.kind {
         case .header(let level):
-            Text(block.text)
+            WindowMarkdownInlineView(text: block.text, sourceFile: sourceFile)
                 .font(headingFont(level))
                 .accessibilityAddTraits(.isHeader)
         case .orderedList, .unorderedList:
@@ -79,7 +83,7 @@ private struct WindowMarkdownBlockView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(marker(for: item)).monospacedDigit()
                             .frame(minWidth: 18, alignment: .trailing)
-                        WindowMarkdownBlockView(block: item)
+                        WindowMarkdownBlockView(block: item, sourceFile: sourceFile)
                     }
                 }
             }
@@ -104,7 +108,7 @@ private struct WindowMarkdownBlockView: View {
                     ForEach(block.children) { row in
                         GridRow {
                             ForEach(row.children) { cell in
-                                Text(cell.text)
+                                WindowMarkdownInlineView(text: cell.text, sourceFile: sourceFile)
                                     .fontWeight(row.kind == .tableHeaderRow ? .semibold : .regular)
                                     .gridColumnAlignment(columnAlignment(cell, columns: columns))
                             }
@@ -117,13 +121,14 @@ private struct WindowMarkdownBlockView: View {
         case .listItem, .tableRow, .tableHeaderRow:
             childBlocks
         default:
-            Text(block.text).frame(maxWidth: .infinity, alignment: .leading)
+            WindowMarkdownInlineView(text: block.text, sourceFile: sourceFile)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var childBlocks: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(block.children) { WindowMarkdownBlockView(block: $0) }
+            ForEach(block.children) { WindowMarkdownBlockView(block: $0, sourceFile: sourceFile) }
         }
     }
 
@@ -147,6 +152,82 @@ private struct WindowMarkdownBlockView: View {
         case .center: .center
         case .right: .trailing
         default: .leading
+        }
+    }
+}
+
+private struct WindowMarkdownInlineView: View {
+    let text: AttributedString
+    let sourceFile: URL?
+    private let segments: [Segment]
+
+    init(text: AttributedString, sourceFile: URL?) {
+        self.text = text
+        self.sourceFile = sourceFile
+        segments = text.runs[\.imageURL].map { url, range in
+            Segment(imageURL: url, text: AttributedString(text[range]))
+        }
+    }
+
+    var body: some View {
+        if !segments.contains(where: { $0.imageURL != nil }) {
+            Text(text)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(segments) { segment in
+                    if let url = segment.imageURL {
+                        WindowMarkdownImage(source: url, alt: String(segment.text.characters), sourceFile: sourceFile)
+                    } else {
+                        Text(segment.text)
+                    }
+                }
+            }
+        }
+    }
+
+    private struct Segment: Identifiable {
+        let id = UUID()
+        let imageURL: URL?
+        let text: AttributedString
+    }
+}
+
+private struct WindowMarkdownImage: View {
+    let source: URL
+    let alt: String
+    let sourceFile: URL?
+
+    private var resolvedURL: URL? {
+        if ["https", "http"].contains(source.scheme?.lowercased() ?? "") { return source }
+        guard source.scheme == nil, !source.path.hasPrefix("/"), let sourceFile else { return nil }
+        let directory = sourceFile.deletingLastPathComponent().resolvingSymlinksInPath()
+        let image = directory.appending(path: source.path).resolvingSymlinksInPath()
+        guard image.path.hasPrefix(directory.path + "/") else { return nil }
+        return image
+    }
+
+    var body: some View {
+        if let url = resolvedURL, url.isFileURL, let image = NSImage(contentsOf: url) {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: image.size.width)
+                .accessibilityLabel(alt)
+        } else if let url = resolvedURL, !url.isFileURL {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    ProgressView()
+                case let .success(image):
+                    image.resizable().scaledToFit().accessibilityLabel(alt)
+                case .failure:
+                    Text(alt).foregroundStyle(.secondary)
+                @unknown default:
+                    Text(alt).foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            Text(alt).foregroundStyle(.secondary)
         }
     }
 }

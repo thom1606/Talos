@@ -92,12 +92,28 @@ final class ExtensionWindowController: NSObject, NSWindowDelegate {
 
         window.contentView = NSHostingView(rootView: ExtensionWindowChrome(
             title: request.title, text: request.content, webPage: webPage,
+            markdownFile: Self.markdownFile(for: request, resources: resources),
             close: { [weak window] in window?.performClose(nil) }
         ))
         windows[ObjectIdentifier(window)] = Entry(window: window, webPage: webPage, scripts: scripts, bridge: windowBridge, loadTask: loadTask)
         window.center()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    private static func markdownFile(for request: TalosWindowRequest, resources: TalosWindowResources) -> URL? {
+        guard request.page == nil else { return nil }
+        guard let data = request.dataJSON?.data(using: .utf8),
+              let payload = try? JSONDecoder().decode(MarkdownWindowData.self, from: data) else {
+            return resources.inputFiles.first
+        }
+        guard let index = request.filePaths.firstIndex(of: payload.sourcePath),
+              resources.inputFiles.indices.contains(index) else { return nil }
+        return resources.inputFiles[index]
+    }
+
+    private struct MarkdownWindowData: Decodable {
+        let sourcePath: String
     }
 
     func closeAll() {
@@ -186,6 +202,7 @@ private struct ExtensionWindowChrome: View {
     let title: String
     let text: String
     let webPage: WebPage?
+    let markdownFile: URL?
     let close: () -> Void
 
     var body: some View {
@@ -219,7 +236,7 @@ private struct ExtensionWindowChrome: View {
                     .webViewMagnificationGestures(.disabled)
                     .webViewLinkPreviews(.disabled)
             } else {
-                WindowMarkdownView(content: text)
+                WindowMarkdownView(content: text, sourceFile: markdownFile)
             }
         }
         .background(.regularMaterial)
