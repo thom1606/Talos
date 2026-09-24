@@ -20,7 +20,8 @@ final class WheelModel {
 
     func updateHover(at point: CGPoint, now: Date = .now) {
         let index = WheelLayout.runtime.index(at: point, count: actions.count)
-        hoveredID = index.map { actions[$0].id }
+        let nextHoveredID = index.map { actions[$0].id }
+        if hoveredID != nextHoveredID { hoveredID = nextHoveredID }
 
         let isInsideCenter = hypot(
             point.x - WheelLayout.runtime.size / 2,
