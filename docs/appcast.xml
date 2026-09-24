@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Talos</title>
+        <item>
+            <title>1.0</title>
+            <pubDate>Thu, 24 Sep 2026 13:21:47 +0000</pubDate>
+            <sparkle:fullReleaseNotesLink>https://github.com/thom1606/Talos/releases/tag/v1.0</sparkle:fullReleaseNotesLink>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/thom1606/Talos/releases/download/v1.0/Talos.zip" length="75776625" type="application/octet-stream" sparkle:edSignature="AypT0qb60cKyDEtMQEM6gM84vhlaDKyGwj5RpZ6PjVFKYOGTLjVA4ylPmEfwlwO3DffqGv916yyMXNOHnBtKCA=="/>
+        </item>
+    </channel>
+</rss>
