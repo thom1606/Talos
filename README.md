@@ -13,7 +13,7 @@ This directory contains the macOS app. To build extensions, see the
 ## Using Talos
 
 1. Launch Talos and complete onboarding. Finder opens and the wheel starts with
-   **Settings** as its only built-in action.
+   **Crop**, **Archive**, **Organize**, **Compress**, **Convert**, and **Settings**.
 2. Open **Repositories** to link a local extension project or add a GitHub
    repository with a published Talos release.
 3. Open **Wheel** and drag actions from the palette onto the wheel.
@@ -48,37 +48,8 @@ Repositories.
 The **Import .talos…** menu item is currently a placeholder. Use a linked local
 project or GitHub repository to load extensions in this version.
 
-## App releases
+## Sponsorship
 
-App updates are published from `release/production`. Pushes to `main` build
-and test the app without publishing an update. Set `MARKETING_VERSION` in the
-Xcode project to the next version before updating the release branch.
-
-To publish the next version, push the intended commit to the release branch:
-
-```sh
-git push origin HEAD:release/production
-```
-
-CI runs the app flows, archives and exports a Developer ID build, notarizes it,
-and publishes a GitHub Release containing only `Talos.dmg` and `Talos.zip`.
-It creates a version tag as a checkpoint; the release branch push starts the
-build. The Xcode project sets the app version, and the CI run number provides
-the increasing build number. Existing published versions cannot be overwritten.
-
-The app reads updates from
-[the appcast](https://thom1606.github.io/Talos/appcast.xml). After publishing
-the release, CI commits the signed feed and
-[SHA-256 checksums](https://thom1606.github.io/Talos/SHA256SUMS) to `docs/` on
-`release/production`. The Pages workflow deploys these files after the release
-build succeeds and verifies that the update can be downloaded publicly.
-
-For the initial public launch, make the repository public and select
-**Settings → Pages → Build and deployment → Source: GitHub Actions**. Run
-**Publish appcast to GitHub Pages** once after a successful release build.
-Later releases deploy automatically.
-GitHub Free does not host Pages for this repository while it is private.
-
-Signing uses the existing Apple signing/notarization secrets and
-`SPARKLE_PRIVATE_KEY`. CI verifies the update signature against the public key
-embedded in the app before publishing.
+If Talos is useful to you, you can support its development through
+[GitHub Sponsors](https://github.com/sponsors/thom1606). Your support helps keep
+Talos maintained and open source.

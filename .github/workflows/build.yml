@@ -11,7 +11,20 @@ concurrency:
   group: talos-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  extension-typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm ci --prefix built-in-actions --ignore-scripts
+      - run: npm run typecheck --prefix built-in-actions
   test:
+    # The Xcode runner executes build scripts; fork PRs run only on a disposable hosted runner.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: xcode-27
     timeout-minutes: 30
     steps:

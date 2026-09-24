@@ -39,6 +39,7 @@ final class ToastController {
     }
 
     func show(_ request: TalosToastRequest) {
+        if request.kind == .success { AppFeedback.shared.actionCompleted() }
         dismissalTask?.cancel()
         model.request = request
         model.isVisible = true

@@ -17,6 +17,9 @@ process and output handling in `shared.ts` and JPEG/PNG helpers beside Compress.
 - **Archive:** selection (including folders) becomes `Archive.zip` beside the first input.
   Files stream directly into the ZIP without a copied staging folder. Duplicate basenames are numbered;
   symlinks remain symlinks; originals stay untouched.
+- **Organize:** uses on-device Apple Intelligence to group selected files and folders into
+  categories beside their originals. It checks the full plan before moving anything and attempts
+  to restore completed moves if a later move fails.
 - **Compress:** no window. PNG scanlines are recompressed without altering pixels, metadata or bit depth;
   JPEG files are re-encoded at quality 85 when that saves at least 5%; otherwise coefficients are optimized
   losslessly with jpegtran. Integer PCM audio up to 24-bit can become FLAC.
@@ -40,7 +43,7 @@ npm run package
 and signing identity. Runtime dependencies are shipped; users need neither Homebrew nor a codec download.
 The app build copies `dist/talos-actions.talos` into `Contents/Resources/BundledExtensions`.
 Installed built-ins are cached separately by package SHA-256 and refreshed when the app ships a new archive.
-Existing wheel configurations are preserved; new installations start with these four actions and Settings.
+New installations start with Crop, Archive, Organize, Compress, Convert, and Settings.
 
 ## Codec distribution
 

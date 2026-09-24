@@ -151,18 +151,9 @@ final class ExtensionWindowBridge: NSObject, WKScriptMessageHandlerWithReply {
         }
     }
 
-    /// Resolve the system accent in both appearances; CSS selects the matching variant.
     private func colors() -> [String: String] {
-        func accent(_ name: NSAppearance.Name) -> String {
-            var value = "AccentColor"
-            NSAppearance(named: name)?.performAsCurrentDrawingAppearance {
-                if let color = NSColor.controlAccentColor.usingColorSpace(.sRGB) {
-                    value = "rgb(\(Int((color.redComponent * 255).rounded())) \(Int((color.greenComponent * 255).rounded())) \(Int((color.blueComponent * 255).rounded())))"
-                }
-            }
-            return value
-        }
-        return ["--talosColor": "#EC3013", "--accentColor": "light-dark(\(accent(.aqua)), \(accent(.darkAqua)))"]
+        ["--talosColor": TalosAppearance.accentHex,
+         "--accentColor": TalosAppearance.accentHex]
     }
 
     func close() {

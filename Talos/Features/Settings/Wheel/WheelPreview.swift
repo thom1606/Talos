@@ -30,7 +30,7 @@ struct WheelPreview: View {
                 shape
                     .fill(
                         hoveredEntryID == entry.id
-                            ? WheelAppearance.red.opacity(0.18)
+                            ? TalosAppearance.accent.opacity(0.18)
                             : Color.primary.opacity(0.05)
                     )
                     .overlay {
@@ -232,12 +232,12 @@ private struct FolderOpenProgress<S: Shape>: View {
 
             ZStack {
                 shape.stroke(
-                    WheelAppearance.red.opacity(0.25),
+                    TalosAppearance.accent.opacity(0.25),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round)
                 )
                 shape.trim(from: 0, to: progress)
                     .stroke(
-                        WheelAppearance.red,
+                        TalosAppearance.accent,
                         style: StrokeStyle(lineWidth: 2, lineCap: .round)
                     )
             }

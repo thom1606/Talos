@@ -3,10 +3,15 @@ import SwiftUI
 struct RuntimeWheelView: View {
     let model: WheelModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         ZStack {
-            glassSurfaces
+            WheelGlassSurfaces(actionIDs: model.actions.map(\.id))
+                .equatable()
+                .allowsHitTesting(false)
+
+            hoverHighlights
                 .allowsHitTesting(false)
 
             ForEach(Array(model.actions.enumerated()), id: \.element.id) { index, action in
@@ -35,47 +40,21 @@ struct RuntimeWheelView: View {
         .animation(.easeInOut(duration: 0.14), value: model.hoveredID)
     }
 
-    @ViewBuilder
-    private var glassSurfaces: some View {
-        if #available(macOS 26, *) {
-            GlassEffectContainer(spacing: 0) {
-                surfaces
-            }
-        } else {
-            surfaces
-        }
-    }
-
-    private var surfaces: some View {
+    private var hoverHighlights: some View {
         ZStack {
             ForEach(Array(model.actions.enumerated()), id: \.element.id) { index, action in
                 let shape = WheelSegment(
                     angle: WheelLayout.runtime.angle(index: index, count: model.actions.count),
                     count: model.actions.count
                 )
-                shape
-                    .fill(.clear)
-                    .modifier(
-                        WheelGlass(
-                            shape: shape,
-                            isSelected: model.hoveredID == action.id
-                        )
-                    )
+                shape.fill(model.hoveredID == action.id ? TalosAppearance.glassHoverTint : .clear)
             }
 
-            WheelCenter()
-                .fill(.clear)
-                .modifier(
-                    WheelGlass(
-                        shape: WheelCenter(),
-                        isSelected: model.dwellTarget == WheelModel.backTarget
-                    )
-                )
+            WheelCenter().fill(
+                model.dwellTarget == WheelModel.backTarget ? TalosAppearance.glassHoverTint : .clear
+            )
         }
-        .id(model.actions.map(\.id))
-        .transaction { transaction in
-            transaction.animation = nil
-        }
+        .blendMode(reduceTransparency ? .normal : .multiply)
     }
 
     private var centerContent: some View {
@@ -144,30 +123,52 @@ struct RuntimeWheelView: View {
     }
 }
 
+/// The glass shader depends only on the wheel layout, never on hover state.
+private struct WheelGlassSurfaces: View, Equatable {
+    let actionIDs: [WheelAction.ID]
+
+    var body: some View {
+        if #available(macOS 26, *) {
+            GlassEffectContainer(spacing: 0) {
+                surfaces
+            }
+        } else {
+            surfaces
+        }
+    }
+
+    private var surfaces: some View {
+        ZStack {
+            ForEach(Array(actionIDs.enumerated()), id: \.element) { index, _ in
+                let shape = WheelSegment(
+                    angle: WheelLayout.runtime.angle(index: index, count: actionIDs.count),
+                    count: actionIDs.count
+                )
+                shape.fill(.clear).modifier(WheelGlass(shape: shape))
+            }
+
+            let center = WheelCenter()
+            center.fill(.clear).modifier(WheelGlass(shape: center))
+        }
+        .id(actionIDs)
+        .transaction { transaction in
+            transaction.animation = nil
+        }
+    }
+}
+
 private struct WheelGlass<S: Shape>: ViewModifier {
     let shape: S
-    let isSelected: Bool
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
         if reduceTransparency {
-            content.background(
-                isSelected ? WheelAppearance.red : Color(nsColor: .windowBackgroundColor),
-                in: shape
-            )
+            content.background(Color(nsColor: .windowBackgroundColor), in: shape)
         } else if #available(macOS 26, *) {
-            content.glassEffect(
-                isSelected ? .clear.tint(WheelAppearance.red) : .regular,
-                in: shape
-            )
+            content.glassEffect(.regular, in: shape)
         } else {
             content.background(.ultraThinMaterial, in: shape)
-                .overlay {
-                    if isSelected {
-                        shape.fill(WheelAppearance.red.opacity(0.65))
-                    }
-                }
         }
     }
 }
@@ -176,7 +177,7 @@ private struct DwellProgress<S: Shape>: View {
     let model: WheelModel
     let target: String
     let shape: S
-    var color: Color = WheelAppearance.red
+    var color: Color = TalosAppearance.accent
 
     var body: some View {
         TimelineView(.animation(paused: model.dwellTarget != target)) { context in

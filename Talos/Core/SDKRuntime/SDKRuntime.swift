@@ -69,11 +69,11 @@ actor SDKRuntime {
             for archive in try fileManager.contentsOfDirectory(at: bundledDirectory, includingPropertiesForKeys: nil)
                 .filter({ $0.pathExtension == "talos" }).sorted(by: { $0.path < $1.path }) {
                 do {
-                    let data = try Data(contentsOf: archive)
-                    let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                    let digest = try Self.sha256(of: archive)
                     let cache = directory.deletingLastPathComponent().appendingPathComponent("BundledExtensions/" + digest)
                     let marker = cache.appendingPathComponent(".ready")
                     if !fileManager.fileExists(atPath: marker.path) {
+                        let data = try Data(contentsOf: archive)
                         let installer = TalosPackageInstaller(root: cache)
                         let package = try installer.stage(data, digest: "sha256:" + digest)
                         try installer.commit(package, replacing: package.manifest.id)
@@ -110,6 +110,18 @@ actor SDKRuntime {
         deactivateAll()
         extensions = loaded
         return failures
+    }
+
+    /// Hash the bundled archive without retaining its contents on every launch.
+    nonisolated private static func sha256(of archive: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: archive)
+        defer { try? handle.close() }
+
+        var hasher = SHA256()
+        while let chunk = try handle.read(upToCount: 1_024 * 1_024), !chunk.isEmpty {
+            hasher.update(data: chunk)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     func loadedExtensions() -> [LoadedExtension] {

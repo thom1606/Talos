@@ -31,18 +31,18 @@ struct OnboardingReadyView: View {
             }
             Image(systemName: "arrow.right")
                 .font(.title3.weight(.medium))
-                .foregroundStyle(WheelAppearance.red)
+                .foregroundStyle(TalosAppearance.accent)
             ZStack {
                 Circle()
-                    .fill(WheelAppearance.red.opacity(0.13))
+                    .fill(TalosAppearance.accent.opacity(0.13))
                     .frame(width: 70, height: 70)
                 Image(systemName: "circle.hexagongrid.fill")
                     .font(.system(size: 34))
-                    .foregroundStyle(WheelAppearance.red)
+                    .foregroundStyle(TalosAppearance.accent)
             }
             Image(systemName: "arrow.right")
                 .font(.title3.weight(.medium))
-                .foregroundStyle(WheelAppearance.red)
+                .foregroundStyle(TalosAppearance.accent)
             VStack(spacing: 7) {
                 Image(systemName: "play.circle.fill")
                     .font(.system(size: 34))

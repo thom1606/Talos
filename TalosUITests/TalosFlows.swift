@@ -42,12 +42,12 @@ final class TalosFlows: XCTestCase {
         finishOnboarding(openSettings: false)
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.windows["settings"].waitForExistence(timeout: 10))
-        app.activate()
+        showSettingsWindow()
         XCTAssertFalse(app.buttons["onboarding.next"].exists)
         let wheel = app.descendants(matching: .any)["wheel.preview"].firstMatch
-        XCTAssertEqual(wheel.buttons.count, 5)
-        for title in ["Crop", "Archive", "Compress", "Convert", "Settings"] { XCTAssertTrue(wheel.buttons[title].exists) }
+        let defaultActions = ["Crop", "Archive", "Organize", "Compress", "Convert", "Settings"]
+        XCTAssertEqual(wheel.buttons.count, defaultActions.count)
+        for title in defaultActions { XCTAssertTrue(wheel.buttons[title].exists) }
     }
 
     func testSettingsNavigationAndSoundPreferencePersist() {
@@ -65,8 +65,7 @@ final class TalosFlows: XCTestCase {
         XCTAssertTrue(app.staticTexts["Drag tiles onto the wheel to add them."].waitForExistence(timeout: 5))
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.windows["settings"].waitForExistence(timeout: 10))
-        app.activate()
+        showSettingsWindow()
         navigate("Advanced")
         XCTAssertEqual(String(describing: app.switches["settings.hoverSound"].value!), changed)
     }
@@ -154,6 +153,8 @@ final class TalosFlows: XCTestCase {
         app.buttons["Cancel"].click()
         app.terminate()
         app.launch()
+        showSettingsWindow()
+        navigate("Wheel")
         XCTAssertTrue(tile.waitForExistence(timeout: 10))
         navigate("Repositories")
         XCTAssertTrue(app.staticTexts["UI Test Tools"].exists)
@@ -164,7 +165,7 @@ final class TalosFlows: XCTestCase {
         XCTAssertFalse(tile.exists)
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.windows["settings"].waitForExistence(timeout: 10))
+        showSettingsWindow()
         navigate("Repositories")
         XCTAssertTrue(app.staticTexts["No repositories"].waitForExistence(timeout: 5))
     }
@@ -193,8 +194,8 @@ final class TalosFlows: XCTestCase {
         XCTAssertTrue(app.buttons["Work tools"].waitForExistence(timeout: 5))
         app.terminate()
         app.launch()
+        showSettingsWindow()
         XCTAssertTrue(app.buttons["Work tools"].waitForExistence(timeout: 10))
-        focusSettings()
         app.buttons["Work tools"].click()
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         XCTAssertEqual(name.value as? String, "Work tools")
@@ -226,6 +227,16 @@ final class TalosFlows: XCTestCase {
         let result = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: output)))
         XCTAssertEqual(result.pixelsWide, 160)
         XCTAssertEqual(result.pixelsHigh, 120)
+        // The output can appear before the window finishes closing.
+        XCTAssertTrue(window.waitForNonExistence(timeout: 10))
+        // Drop the original again to verify collision-safe naming.
+        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105))
+        XCTAssertTrue(window.waitForExistence(timeout: 15))
+        XCTAssertTrue(width.waitForExistence(timeout: 15))
+        replaceText(width, with: "160")
+        width.typeKey(.tab, modifierFlags: [])
+        replaceText(height, with: "120")
+        height.typeKey(.tab, modifierFlags: [])
         window.buttons["Apply"].click()
         let second = directory.appendingPathComponent("sample-cropped-2.png")
         waitForFile(second)
@@ -250,7 +261,8 @@ final class TalosFlows: XCTestCase {
         let directory = try mediaFixture("compress")
         finishOnboarding(openSettings: false)
         let input = directory.appendingPathComponent("sample.png")
-        dropOnWheel(file: input, offset: CGVector(dx: 62, dy: 85))
+        // Six default actions put Compress at the bottom of the image wheel.
+        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: 105))
         let output = directory.appendingPathComponent("sample-compressed.png")
         waitForFile(output)
         let originalData = try Data(contentsOf: input), outputData = try Data(contentsOf: output)
@@ -271,9 +283,10 @@ final class TalosFlows: XCTestCase {
         dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105))
         let window = app.windows["Crop"]
         XCTAssertTrue(window.waitForExistence(timeout: 15))
-        let preview = window.buttons["Play / pause preview"]
+        let preview = window.buttons["Play preview"]
         XCTAssertTrue(preview.waitForExistence(timeout: 15), "Local video metadata must load without copying all bytes through JSON")
         preview.click()
+        XCTAssertTrue(window.buttons["Pause preview"].waitForExistence(timeout: 5))
         let width = window.textFields["Width"], height = window.textFields["Height"]
         replaceText(width, with: "160"); width.typeKey(.tab, modifierFlags: [])
         replaceText(height, with: "120"); height.typeKey(.tab, modifierFlags: [])
@@ -355,6 +368,10 @@ final class TalosFlows: XCTestCase {
         XCTAssertTrue(finder.wait(for: .runningForeground, timeout: 5))
         XCTAssertTrue(finder.windows.firstMatch.waitForExistence(timeout: 5))
         guard openSettings else { return }
+        showSettingsWindow()
+    }
+
+    private func showSettingsWindow() {
         app.activate()
         app.typeKey(",", modifierFlags: .command)
         focusSettings()

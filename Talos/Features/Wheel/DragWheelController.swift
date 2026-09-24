@@ -59,9 +59,15 @@ final class DragWheelController {
     func updateHover(_ point: CGPoint) {
         guard model.isVisible else { return }
         let previous = model.hoveredID
+        let wasHoveringBack = model.dwellTarget == WheelModel.backTarget
         model.updateHover(at: point)
+        let enteredBack = model.dwellTarget == WheelModel.backTarget && !wasHoveringBack
         model.advanceDwell()
-        if let action = model.hoveredAction, previous != action.id { hoverHandler(action) }
+        if enteredBack { AppFeedback.shared.hoveredTargetChanged() }
+        if let action = model.hoveredAction, previous != action.id {
+            AppFeedback.shared.hoveredTargetChanged()
+            hoverHandler(action)
+        }
     }
 
     var canDrop: Bool {
@@ -153,6 +159,9 @@ final class DragWheelController {
             show()
         }
         guard let panel else { return }
+        // AppKit's drag location is authoritative while the cursor is over the wheel.
+        // Alternating it with the polled mouse position can briefly clear and re-enter a tile.
+        guard !isReceivingDrag else { return }
 
         let mouse = NSEvent.mouseLocation
         updateHover(

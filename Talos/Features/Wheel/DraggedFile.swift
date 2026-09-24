@@ -8,7 +8,11 @@ nonisolated struct DraggedFile: Sendable {
 
 actor DraggedFileInspector {
     func inspect(_ urls: [URL]) -> [DraggedFile] {
-        urls.map { url in
+        var files: [DraggedFile] = []
+        files.reserveCapacity(urls.count)
+        for url in urls {
+            // A newer drag should not wait for an obsolete scan of a large selection.
+            if Task.isCancelled { break }
             let isAccessing = url.startAccessingSecurityScopedResource()
             defer {
                 if isAccessing {
@@ -20,8 +24,9 @@ actor DraggedFileInspector {
             let isDirectory = values?.isDirectory == true
             let fallback = Self.fallbackType(for: url.pathExtension, isDirectory: isDirectory)
             let contentType = values?.contentType.flatMap { $0.isDynamic ? nil : $0 } ?? fallback
-            return DraggedFile(url: url, contentType: contentType)
+            files.append(DraggedFile(url: url, contentType: contentType))
         }
+        return files
     }
 
     private static func fallbackType(for pathExtension: String, isDirectory: Bool) -> UTType {
