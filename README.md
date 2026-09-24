@@ -5,6 +5,8 @@
 Drag files, hold **Shift**, and drop them on an action. Talos puts file tools
 right under your pointer in a configurable action wheel.
 
+[Download Talos for macOS](https://thom1606.github.io/Talos/) · [Latest release](https://github.com/thom1606/Talos/releases/latest)
+
 This directory contains the macOS app. To build extensions, see the
 [Talos SDK](https://github.com/thom1606/talos-sdk).
 
