@@ -38,6 +38,14 @@ final class WheelActionLibrary {
             }
         }
 
+        func options(for command: ExtensionCommand, in loaded: LoadedExtension) -> [(String, ExtensionCommand)] {
+            (command.subcommands ?? []).compactMap { name in
+                guard let child = loaded.manifest.commands.first(where: { $0.name == name }),
+                      child.subcommands?.isEmpty != false else { return nil }
+                return (name, child)
+            }
+        }
+
         func collect(_ items: [WheelItem], prefix: String = "") -> [ShortcutTile] {
             items.flatMap { item -> [ShortcutTile] in
                 if let children = item.children {
@@ -47,29 +55,56 @@ final class WheelActionLibrary {
                 guard let actionID = item.actionID,
                       let (loaded, command) = commands[actionID] else { return [] }
                 let title = prefix + displayTitle(for: item, fallback: command.displayName)
-                let subcommands = command.subcommands ?? []
+                let subcommands = options(for: command, in: loaded)
                 if !subcommands.isEmpty {
-                    return subcommands.compactMap { name in
-                        guard let child = loaded.manifest.commands.first(where: { $0.name == name }),
-                              child.subcommands?.isEmpty != false else { return nil }
-                        return ShortcutTile(
-                            id: "\(item.id.uuidString)/\(name)",
-                            title: "\(title) / \(child.displayName)",
-                            tile: Tile(id: item.id, extensionBundleID: loaded.id, action: name, config: item.config),
-                            command: child
-                        )
+                    return subcommands.map { name, child in
+                        ShortcutTile(id: "\(item.id.uuidString)/\(name)",
+                                     title: "\(title) / \(child.displayName)",
+                                     tile: Tile(id: item.id, extensionBundleID: loaded.id,
+                                                action: name, config: item.config),
+                                     command: child)
                     }
                 }
-                return [ShortcutTile(
-                    id: item.id.uuidString,
-                    title: title,
-                    tile: Tile(id: item.id, extensionBundleID: loaded.id, action: command.name, config: item.config),
-                    command: command
-                )]
+                return [ShortcutTile(id: item.id.uuidString, title: title,
+                                     tile: Tile(id: item.id, extensionBundleID: loaded.id,
+                                                action: command.name, config: item.config),
+                                     command: command)]
             }
         }
 
-        return collect(WheelConfigurationStore.load().items)
+        func actionIDs(in items: [WheelItem]) -> [String] {
+            items.flatMap { item in
+                if let children = item.children { return actionIDs(in: children) }
+                return item.actionID.map { [$0] } ?? []
+            }
+        }
+
+        let configured = collect(WheelConfigurationStore.load().items)
+        let configuredActions = Set(actionIDs(in: WheelConfigurationStore.load().items))
+        let referencedSubcommands = Set(extensions.flatMap { loaded in
+            loaded.manifest.commands.flatMap { $0.subcommands ?? [] }.map { "\(loaded.id).\($0)" }
+        })
+        let available = extensions.flatMap { loaded in
+            loaded.manifest.commands.flatMap { command -> [ShortcutTile] in
+                let actionID = "\(loaded.id).\(command.name)"
+                guard !configuredActions.contains(actionID), !referencedSubcommands.contains(actionID) else {
+                    return []
+                }
+                let subcommands = options(for: command, in: loaded)
+                if !subcommands.isEmpty {
+                    return subcommands.map { name, child in
+                        ShortcutTile(id: "\(actionID)/\(name)",
+                                     title: "\(command.displayName) / \(child.displayName)",
+                                     tile: Tile(id: UUID(), extensionBundleID: loaded.id,
+                                                action: name, config: [:]), command: child)
+                    }
+                }
+                return [ShortcutTile(id: actionID, title: command.displayName,
+                                     tile: Tile(id: UUID(), extensionBundleID: loaded.id,
+                                                action: command.name, config: [:]), command: command)]
+            }
+        }
+        return configured + available
     }
 
     func performShortcutTile(id: String, files: [DraggedFile]) async throws {
@@ -196,6 +231,8 @@ final class WheelActionLibrary {
             } else if configuredTile.config[setting.name] == nil {
                 configuredTile.config[setting.name] = setting.defaultValue
             }
+        }
+        for setting in settings {
             if setting.required == true {
                 guard let value = configuredTile.config[setting.name] else {
                     throw WheelActionConfigurationError.missing(setting.displayName)

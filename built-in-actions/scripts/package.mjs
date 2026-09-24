@@ -12,12 +12,14 @@ try {
     await cp(join(root, 'vendor', directory), join(stage, 'vendor', directory), { recursive: true });
   }
   await cp(join(root, 'scripts/build-tools.sh'), join(stage, 'vendor/build-tools.sh'));
+  await cp(join(root, 'scripts/build-pdf-tool.sh'), join(stage, 'vendor/build-pdf-tool.sh'));
+  await cp(join(root, 'scripts/pdf-tool.swift'), join(stage, 'vendor/pdf-tool.swift'));
   const architectures = (process.env.ARCHS ?? (process.arch === 'arm64' ? 'arm64' : 'x86_64')).split(/\s+/).filter(Boolean);
   // Do not accidentally ship an unsigned stale binary from another local build architecture.
   for (const arch of await readdir(join(stage, 'vendor/bin'))) {
     if (!architectures.includes(arch)) await rm(join(stage, 'vendor/bin', arch), { recursive: true });
   }
-  for (const arch of architectures) for (const tool of ['ffmpeg', 'ffprobe', 'jpegtran', 'cjpeg', 'djpeg']) await stat(join(stage, 'vendor/bin', arch, tool));
+  for (const arch of architectures) for (const tool of ['ffmpeg', 'ffprobe', 'jpegtran', 'cjpeg', 'djpeg', 'pdf-tool']) await stat(join(stage, 'vendor/bin', arch, tool));
   await rm(archive);
   execFileSync('/usr/bin/ditto', ['-c', '-k', '--norsrc', '--noextattr', '--noqtn', stage, archive]);
   console.log(`Bundled Talos actions: ${((await stat(archive)).size / 1024 / 1024).toFixed(1)} MB`);

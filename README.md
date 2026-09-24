@@ -27,6 +27,14 @@ Talos keeps running when you close settings. Open the app again to return to
 settings. Extensions can show native dialogs, toasts, Markdown content, and
 React interfaces inside native windows.
 
+## Shortcuts
+
+Add **Run Talos Tile** in the Shortcuts app, choose an action, and pass files to
+it. Configured wheel tiles appear alongside installed extension actions that
+are not on the wheel. Convert formats appear as separate actions. Shortcuts
+uses a wheel tile's saved settings. Actions outside the wheel use extension
+defaults; add an action to the wheel in Talos to configure its settings.
+
 ## Repositories and updates
 
 In **Repositories → Add repository**, choose:

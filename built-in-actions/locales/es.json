@@ -15,7 +15,7 @@
     },
     "convert": {
       "displayName": "Convertir",
-      "description": "Convierte una selección de imágenes, vídeos o archivos de audio."
+      "description": "Convierte una selección de imágenes, PDF, vídeos o archivos de audio."
     },
     "convert-png": {
       "displayName": "PNG",
@@ -24,6 +24,10 @@
     "convert-jpg": {
       "displayName": "JPG",
       "description": "Convierte los archivos seleccionados a JPG."
+    },
+    "convert-docx": {
+      "displayName": "DOCX",
+      "description": "Convierte los PDF seleccionados en documentos DOCX editables."
     },
     "convert-tiff": {
       "displayName": "TIFF",

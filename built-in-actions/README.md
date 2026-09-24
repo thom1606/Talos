@@ -25,8 +25,11 @@ process and output handling in `shared.ts` and JPEG/PNG helpers beside Compress.
   losslessly with jpegtran. Integer PCM audio up to 24-bit can become FLAC.
   FLAC is recompressed; other audio/video is remuxed without re-encoding. Outputs are kept only when smaller.
   Animated PNG and unsupported image optimizations are left unchanged. Savings are never guaranteed.
-- **Convert:** wheel submenu (no window), showing formats for a homogeneous image/video/audio selection. Images: PNG, JPEG, TIFF, BMP.
-  Video: MP4/MOV. Audio: M4A, WAV, FLAC. Converted copies receive `-converted` suffixes.
+- **Convert:** wheel submenu (no window), showing formats for a homogeneous image/PDF/video/audio selection.
+  Images: PNG, JPEG, TIFF, BMP. PDFs: one PNG or JPG per page, or a DOCX with editable extracted text
+  and page breaks. PDF pages without extractable text are included as images in the DOCX.
+  Video: MP4/MOV. Audio: M4A, WAV, FLAC. Converted copies receive `-converted` suffixes;
+  PDF images also include page numbers. DOCX text extraction cannot preserve every PDF layout detail.
   Video and M4A conversions may be lossy. Originals are never overwritten.
 
 ## Build

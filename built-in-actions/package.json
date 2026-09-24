@@ -6,7 +6,7 @@
   "scripts": {
     "build": "talos build",
     "typecheck": "tsc --noEmit",
-    "package": "bash scripts/build-tools.sh && talos build && node scripts/package.mjs"
+    "package": "bash scripts/build-tools.sh && bash scripts/build-pdf-tool.sh && talos build && node scripts/package.mjs"
   },
   "devDependencies": {
     "@thom1606/talos-sdk": "3.2.0",
@@ -19,6 +19,7 @@
   "dependencies": {
     "@radix-ui/react-icons": "1.3.2",
     "archiver": "8.0.0",
+    "docx": "9.7.2",
     "react": "^19.2.0",
     "react-dom": "^19.3.0"
   },
@@ -84,7 +85,7 @@
       "name": "convert",
       "displayName": "Convert",
       "icon": "arrow.trianglehead.2.clockwise.rotate.90",
-      "description": "Convert a selection of images, videos, or audio files.",
+      "description": "Convert a selection of images, PDFs, videos, or audio files.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
@@ -95,11 +96,13 @@
         "com.compuserve.gif",
         "com.microsoft.bmp",
         "public.movie",
-        "public.audio"
+        "public.audio",
+        "com.adobe.pdf"
       ],
       "subcommands": [
         "convert-png",
         "convert-jpg",
+        "convert-docx",
         "convert-tiff",
         "convert-bmp",
         "convert-mp4",
@@ -121,7 +124,8 @@
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
-        "com.microsoft.bmp"
+        "com.microsoft.bmp",
+        "com.adobe.pdf"
       ]
     },
     {
@@ -136,7 +140,16 @@
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
-        "com.microsoft.bmp"
+        "com.microsoft.bmp",
+        "com.adobe.pdf"
+      ]
+    },
+    {
+      "name": "convert-docx",
+      "displayName": "DOCX",
+      "description": "Convert selected PDF files to DOCX.",
+      "supportedFileTypes": [
+        "com.adobe.pdf"
       ]
     },
     {
