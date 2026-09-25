@@ -1,51 +1,6 @@
 import AppKit
 import Foundation
 
-enum WheelPreviewContext: String, CaseIterable, Identifiable {
-    case folder
-    case file
-    case image
-    case video
-    case audio
-    case pdf
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .folder:
-            String(localized: "Folder")
-        case .file:
-            String(localized: "File")
-        case .image:
-            String(localized: "Image")
-        case .video:
-            String(localized: "Video")
-        case .audio:
-            String(localized: "Audio")
-        case .pdf:
-            "PDF"
-        }
-    }
-
-    var symbolName: String {
-        switch self {
-        case .folder:
-            "folder"
-        case .file:
-            "doc"
-        case .image:
-            "photo"
-        case .video:
-            "film"
-        case .audio:
-            "waveform"
-        case .pdf:
-            "doc.richtext"
-        }
-    }
-}
-
 struct WheelTilePresentation: Identifiable, Equatable {
     let id: String
     let extensionBundleID: String
@@ -54,7 +9,6 @@ struct WheelTilePresentation: Identifiable, Equatable {
     let description: String?
     let extensionName: String
     let symbolName: String?
-    let supportedContexts: Set<WheelPreviewContext>
     let settings: [ExtensionSetting]
 
     var helpText: String {
@@ -91,7 +45,6 @@ extension WheelTilePresentation {
         description: nil,
         extensionName: "Talos",
         symbolName: "gearshape",
-        supportedContexts: Set(WheelPreviewContext.allCases),
         settings: []
     )
 }

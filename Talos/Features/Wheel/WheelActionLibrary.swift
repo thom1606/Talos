@@ -142,10 +142,13 @@ final class WheelActionLibrary {
         case let .folder(children):
             guard !children.isEmpty else { return }
         case let .extensionAction(tile):
+            guard action.isEnabled else { return }
             Task {
                 do {
                     let configuredTile = try configured(tile)
-                    try await runtime.activate(tile: configuredTile, files: files.map { .init(path: $0.url.path, name: $0.url.lastPathComponent, contentType: $0.contentType.identifier, accessURL: $0.url) })
+                    let selected = files.filter { action.fileURLs.contains($0.url) }
+                    guard !selected.isEmpty else { return }
+                    try await runtime.activate(tile: configuredTile, files: selected.map { .init(path: $0.url.path, name: $0.url.lastPathComponent, contentType: $0.contentType.identifier, accessURL: $0.url) })
                 } catch {
                     reportError(error.localizedDescription)
                 }
@@ -170,12 +173,12 @@ final class WheelActionLibrary {
             let matchingChildren = children.compactMap {
                 action(from: $0, commands: commands, files: files)
             }
-            guard children.isEmpty || !matchingChildren.isEmpty else { return nil }
             return WheelAction(
                 id: item.id,
                 title: displayTitle(for: item, fallback: String(localized: "Folder")),
                 symbolName: "folder",
-                destination: .folder(matchingChildren)
+                destination: .folder(matchingChildren),
+                isEnabled: matchingChildren.contains(where: \.isEnabled)
             )
         }
 
@@ -189,7 +192,7 @@ final class WheelActionLibrary {
             )
         }
 
-        guard let (loadedExtension, command) = commands[actionID], command.supports(files) else {
+        guard let (loadedExtension, command) = commands[actionID] else {
             return nil
         }
 
@@ -201,19 +204,39 @@ final class WheelActionLibrary {
     private func extensionAction(_ command: ExtensionCommand, in loaded: LoadedExtension,
                                  id: UUID, title: String? = nil, files: [DraggedFile],
                                  config: [String: TileConfigValue] = [:]) -> WheelAction? {
-        guard command.supports(files) else { return nil }
+        let matchingFiles = command.matchingFiles(in: files)
         if let names = command.subcommands {
-            let children = names.compactMap { name -> WheelAction? in
-                guard let child = loaded.manifest.commands.first(where: { $0.name == name }) else { return nil }
-                return extensionAction(child, in: loaded, id: UUID(), files: files)
+            let groups = Dictionary(grouping: matchingFiles, by: { $0.category })
+            if groups.count > 1 {
+                let children = DraggedFile.Category.allCases.compactMap { category -> WheelAction? in
+                    guard let groupFiles = groups[category], !groupFiles.isEmpty else { return nil }
+                    let options = names.compactMap { name -> WheelAction? in
+                        guard let child = loaded.manifest.commands.first(where: { $0.name == name }),
+                              !child.matchingFiles(in: groupFiles).isEmpty else { return nil }
+                        return extensionAction(child, in: loaded, id: UUID(), files: groupFiles)
+                    }
+                    return WheelAction(id: UUID(), title: "\(category.title) (\(groupFiles.count))",
+                                       symbolName: category.symbolName, destination: .folder(options),
+                                       isEnabled: options.contains(where: \.isEnabled))
+                }
+                return WheelAction(id: id, title: title ?? command.displayName,
+                                   symbolName: resolvedSymbolName(command.icon), destination: .folder(children),
+                                   isEnabled: children.contains(where: \.isEnabled))
             }
-            guard !children.isEmpty else { return nil }
+            let children = names.compactMap { name -> WheelAction? in
+                guard let child = loaded.manifest.commands.first(where: { $0.name == name }),
+                      !child.matchingFiles(in: matchingFiles).isEmpty else { return nil }
+                return extensionAction(child, in: loaded, id: UUID(), files: matchingFiles)
+            }
             return WheelAction(id: id, title: title ?? command.displayName, symbolName: resolvedSymbolName(command.icon),
-                               destination: .folder(children))
+                               destination: .folder(children),
+                               isEnabled: children.contains(where: \.isEnabled))
         }
         return WheelAction(id: id, title: title ?? command.displayName, symbolName: resolvedSymbolName(command.icon),
                            destination: .extensionAction(Tile(id: id, extensionBundleID: loaded.id,
-                                                              action: command.name, config: config)))
+                                                              action: command.name, config: config)),
+                           fileURLs: matchingFiles.map(\.url),
+                           isEnabled: !matchingFiles.isEmpty)
     }
 
     private func configured(_ tile: Tile) throws -> Tile {
@@ -245,7 +268,10 @@ final class WheelActionLibrary {
         return configuredTile
     }
 
-    private func displayTitle(for item: WheelItem, fallback: String) -> String {
+}
+
+private extension WheelActionLibrary {
+    func displayTitle(for item: WheelItem, fallback: String) -> String {
         let customTitle = item.customTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let customTitle, !customTitle.isEmpty {
             return customTitle
@@ -254,7 +280,7 @@ final class WheelActionLibrary {
         return fallback
     }
 
-    private func resolvedSymbolName(_ name: String?) -> String {
+    func resolvedSymbolName(_ name: String?) -> String {
         guard let name, !name.isEmpty else { return "" }
         guard NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil else {
             return "questionmark"
@@ -277,11 +303,13 @@ private enum ShortcutTileError: LocalizedError {
 
 private extension ExtensionCommand {
     func supports(_ files: [DraggedFile]) -> Bool {
-        guard !files.isEmpty else { return false }
-        if supportedFileTypes.contains("*") { return true }
+        !files.isEmpty && matchingFiles(in: files).count == files.count
+    }
 
-        return files.allSatisfy { file in
+    func matchingFiles(in files: [DraggedFile]) -> [DraggedFile] {
+        files.filter { file in
             supportedFileTypes.contains { identifier in
+                if identifier == "*" { return true }
                 if identifier.hasPrefix(".") {
                     return !file.contentType.conforms(to: .folder) &&
                         file.url.lastPathComponent.lowercased().hasSuffix(identifier.lowercased())

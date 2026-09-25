@@ -79,7 +79,6 @@
 "Repository operation failed" = "Repository operation failed";
 "Check for updates" = "Check for updates";
 "Repository actions" = "Repository actions";
-"Drag tiles onto the wheel to add them." = "Drag tiles onto the wheel to add them.";
 "Tiles" = "Tiles";
 "Wheel tiles" = "Wheel tiles";
 "Drag onto the wheel" = "Drag onto the wheel";
@@ -117,7 +116,6 @@
 "Edit Action" = "Edit Action";
 "Extension" = "Extension";
 "Open folder" = "Open folder";
-"Preview context" = "Preview context";
 "Press to edit. Press and hold to open." = "Press to edit. Press and hold to open.";
 "Press to edit settings." = "Press to edit settings.";
 "Repository URL" = "Repository URL";

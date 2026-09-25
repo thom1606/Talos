@@ -21,17 +21,7 @@ extension WheelItem {
             ?? "questionmark"
     }
 
-    func supports(
-        _ context: WheelPreviewContext,
-        using tiles: [WheelTilePresentation]
-    ) -> Bool {
-        if let children {
-            return children.isEmpty || children.contains { child in
-                child.supports(context, using: tiles)
-            }
-        }
-
-        return tiles.first(where: { $0.id == actionID })?
-            .supportedContexts.contains(context) == true
+    func isAvailable(using tiles: [WheelTilePresentation]) -> Bool {
+        isFolder || tiles.contains(where: { $0.id == actionID })
     }
 }

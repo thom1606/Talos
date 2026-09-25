@@ -3,7 +3,6 @@ import SwiftUI
 struct WheelPreview: View {
     let entries: [WheelItem]
     let tiles: [WheelTilePresentation]
-    let context: WheelPreviewContext
     let ghostEntryID: WheelItem.ID?
     let pressedFolderID: WheelItem.ID?
     let folderPressStartedAt: Date?
@@ -45,7 +44,8 @@ struct WheelPreview: View {
                     Circle()
                         .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
                 }
-                .frame(width: 82, height: 82)
+                .frame(width: WheelLayout.editor.centerRadius * 2,
+                       height: WheelLayout.editor.centerRadius * 2)
 
             ForEach(entries.enumerated(), id: \.element.id) { index, entry in
                 WheelPreviewTile(
@@ -98,23 +98,12 @@ struct WheelPreview: View {
                             .font(.system(size: 9, weight: .semibold))
                             .tracking(0.8)
                     }
-                    .frame(width: 82, height: 82)
+                    .frame(width: WheelLayout.editor.centerRadius * 2,
+                           height: WheelLayout.editor.centerRadius * 2)
                     .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Back to parent folder")
-            } else {
-                VStack(spacing: 5) {
-                    Image(systemName: context.symbolName)
-                        .font(.system(size: 20, weight: .regular))
-
-                    Text(context.title.uppercased())
-                        .font(.system(size: 9, weight: .semibold))
-                        .tracking(0.8)
-                }
-                .foregroundStyle(.secondary)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Previewing \(context.title) items")
             }
         }
         .frame(width: WheelLayout.editor.size, height: WheelLayout.editor.size)
@@ -189,7 +178,8 @@ private struct WheelPreviewTile: View {
                         title: title,
                         symbolName: symbolName,
                         layout: .editor,
-                        count: entryCount
+                        count: entryCount,
+                        isEditor: true
                     )
                     .foregroundStyle(Color.primary)
                     .opacity(isGhost ? 0.5 : 1)

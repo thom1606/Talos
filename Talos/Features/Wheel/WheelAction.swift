@@ -5,6 +5,8 @@ struct WheelAction: Identifiable, Equatable {
     let title: String
     let symbolName: String
     let destination: Destination
+    var fileURLs: [URL] = []
+    var isEnabled = true
 
     indirect enum Destination: Equatable {
         case folder([WheelAction])
@@ -16,4 +18,5 @@ struct WheelAction: Identifiable, Equatable {
         if case .folder = destination { return true }
         return false
     }
+
 }

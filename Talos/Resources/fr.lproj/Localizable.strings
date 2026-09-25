@@ -79,7 +79,6 @@
 "Repository operation failed" = "Échec de l’opération sur le dépôt";
 "Check for updates" = "Rechercher des mises à jour";
 "Repository actions" = "Actions du dépôt";
-"Drag tiles onto the wheel to add them." = "Faites glisser les tuiles sur la roue pour les ajouter.";
 "Tiles" = "Tuiles";
 "Wheel tiles" = "Tuiles de la roue";
 "Drag onto the wheel" = "Faites glisser sur la roue";
@@ -116,7 +115,6 @@
 "Edit Action" = "Modifier l’action";
 "Extension" = "Extension";
 "Open folder" = "Ouvrir le dossier";
-"Preview context" = "Contexte de prévisualisation";
 "Press to edit. Press and hold to open." = "Appuyez pour modifier. Maintenez pour ouvrir.";
 "Press to edit settings." = "Appuyez pour modifier les réglages.";
 "Repository URL" = "URL du dépôt";

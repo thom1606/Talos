@@ -1,5 +1,4 @@
 import Foundation
-import UniformTypeIdentifiers
 
 struct LocalProjectPackage: Decodable {
     let name: String
@@ -67,7 +66,6 @@ struct LocalProjectPackage: Decodable {
                 description: command.description,
                 extensionName: extensionName,
                 symbolName: command.icon,
-                supportedContexts: supportedContexts(for: command.supportedFileTypes),
                 settings: command.settings ?? []
             )
         }
@@ -84,21 +82,6 @@ struct LocalProjectPackage: Decodable {
         }
 
         return contents.contains { $0.pathExtension == "talos" }
-    }
-
-    private func supportedContexts(for identifiers: [String]) -> Set<WheelPreviewContext> {
-        if identifiers.contains("*") {
-            return Set(WheelPreviewContext.allCases)
-        }
-
-        return Set(WheelPreviewContext.allCases.filter { context in
-            identifiers.contains { identifier in
-                if identifier.hasPrefix(".") { return context == .file }
-                guard let supportedType = UTType(identifier) else { return false }
-                return context.contentType.conforms(to: supportedType) ||
-                    supportedType.conforms(to: context.contentType)
-            }
-        })
     }
 
     private func safeURL(for relativePath: String, in root: URL) -> URL? {
@@ -125,25 +108,6 @@ enum LocalProjectError: LocalizedError {
             message
         case .cannotCreateBookmark:
             "Talos could not keep access to this project folder"
-        }
-    }
-}
-
-private extension WheelPreviewContext {
-    var contentType: UTType {
-        switch self {
-        case .folder:
-            .folder
-        case .file:
-            .item
-        case .image:
-            .image
-        case .video:
-            .movie
-        case .audio:
-            .audio
-        case .pdf:
-            .pdf
         }
     }
 }

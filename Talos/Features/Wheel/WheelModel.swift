@@ -30,7 +30,7 @@ final class WheelModel {
         let nextTarget: String?
         if isInsideCenter, !parents.isEmpty {
             nextTarget = Self.backTarget
-        } else if let hoveredAction, hoveredAction.isFolder {
+        } else if let hoveredAction, hoveredAction.isFolder, hoveredAction.isEnabled {
             nextTarget = hoveredAction.id.uuidString
         } else {
             nextTarget = nil
@@ -55,7 +55,8 @@ final class WheelModel {
         } else if
             let hoveredAction,
             hoveredAction.id.uuidString == dwellTarget,
-            case let .folder(children) = hoveredAction.destination
+            case let .folder(children) = hoveredAction.destination,
+            hoveredAction.isEnabled
         {
             enter(children)
         }
