@@ -314,8 +314,8 @@ final class TalosFlows: XCTestCase {
     func testBuiltInArchiveIncludesEntireSelection() throws {
         let directory = try mediaFixture("archive")
         finishOnboarding(openSettings: false)
-        // Mixed image/text selection leaves Archive and Settings: Archive is the top segment.
-        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -105), includingFile: "notes.txt")
+        // Unsupported actions stay visible, so Archive remains the second of six segments.
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 91, dy: -52), includingFile: "notes.txt")
         let output = directory.appendingPathComponent("Archive.zip")
         waitForFile(output)
         for name in ["sample.png", "notes.txt"] {
