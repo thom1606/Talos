@@ -79,7 +79,6 @@
 "Repository operation failed" = "Repository-Vorgang fehlgeschlagen";
 "Check for updates" = "Nach Updates suchen";
 "Repository actions" = "Repository-Aktionen";
-"Drag tiles onto the wheel to add them." = "Ziehe Kacheln auf das Aktionsrad, um sie hinzuzufügen.";
 "Tiles" = "Kacheln";
 "Wheel tiles" = "Aktionsrad-Kacheln";
 "Drag onto the wheel" = "Auf das Aktionsrad ziehen";
@@ -118,10 +117,8 @@
 "Edit Action" = "Aktion bearbeiten";
 "Extension" = "Erweiterung";
 "Open folder" = "Ordner öffnen";
-"Preview context" = "Vorschaukontext";
 "Press to edit. Press and hold to open." = "Drücken zum Bearbeiten. Gedrückt halten zum Öffnen.";
 "Press to edit settings." = "Drücken, um die Einstellungen zu bearbeiten.";
-"Previewing %@ items" = "Vorschau für %@-Elemente";
 "Repository URL" = "Repository-URL";
 
 "Saved in Keychain. Leave empty to keep it." = "Im Schlüsselbund gespeichert. Leer lassen, um das Token beizubehalten.";

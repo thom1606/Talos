@@ -47,7 +47,7 @@ struct RuntimeWheelView: View {
                     angle: WheelLayout.runtime.angle(index: index, count: model.actions.count),
                     count: model.actions.count
                 )
-                shape.fill(model.hoveredID == action.id ? TalosAppearance.glassHoverTint : .clear)
+                shape.fill(model.hoveredID == action.id && action.isEnabled ? TalosAppearance.glassHoverTint : .clear)
             }
 
             WheelCenter().fill(
@@ -85,6 +85,7 @@ struct RuntimeWheelView: View {
         .foregroundStyle(
             model.dwellTarget == WheelModel.backTarget ? Color.white : Color.primary
         )
+        .opacity(model.hoveredAction?.isEnabled == false ? 0.45 : 1)
         .contentTransition(.opacity)
         .allowsHitTesting(false)
     }
@@ -96,7 +97,7 @@ struct RuntimeWheelView: View {
         return WheelSegment(angle: angle, count: model.actions.count)
             .fill(.clear)
             .overlay {
-                if action.isFolder {
+                if action.isFolder && action.isEnabled {
                     DwellProgress(
                         model: model,
                         target: action.id.uuidString,
@@ -109,9 +110,11 @@ struct RuntimeWheelView: View {
                     title: action.title,
                     symbolName: action.symbolName,
                     layout: .runtime,
-                    count: model.actions.count
+                    count: model.actions.count,
+                    isEditor: false
                 )
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .foregroundStyle(isSelected && action.isEnabled ? Color.white : Color.primary)
+                .opacity(action.isEnabled ? 1 : 0.38)
                 .offset(
                     x: cos(angle) * WheelLayout.runtime.contentRadius,
                     y: sin(angle) * WheelLayout.runtime.contentRadius

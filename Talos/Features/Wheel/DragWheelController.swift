@@ -65,8 +65,10 @@ final class DragWheelController {
         model.advanceDwell()
         if enteredBack { AppFeedback.shared.hoveredTargetChanged() }
         if let action = model.hoveredAction, previous != action.id {
-            AppFeedback.shared.hoveredTargetChanged()
-            hoverHandler(action)
+            if action.isEnabled {
+                AppFeedback.shared.hoveredTargetChanged()
+                hoverHandler(action)
+            }
         }
     }
 
@@ -80,7 +82,7 @@ final class DragWheelController {
         }
 
         if case .folder = hoveredAction.destination { return false }
-        return true
+        return hoveredAction.isEnabled
     }
 
     func beginDestinationDrag() {
@@ -99,7 +101,7 @@ final class DragWheelController {
         preparedDrop = nil
         guard isReceivingDrag, model.isVisible, shiftIsDown else { return false }
         updateHover(point)
-        guard let action = model.hoveredAction, !action.isFolder else { return false }
+        guard let action = model.hoveredAction, !action.isFolder, action.isEnabled else { return false }
         preparedDrop = (action, pasteboard.changeCount)
         return true
     }
@@ -109,6 +111,7 @@ final class DragWheelController {
         // Consume once: subsequent callbacks must never dispatch the action twice.
         self.preparedDrop = nil
         let action = preparedDrop.action
+        guard action.isEnabled else { return false }
         guard pasteboard.canReadObject(
             forClasses: [NSURL.self],
             options: [.urlReadingFileURLsOnly: true]
@@ -275,7 +278,10 @@ final class DragWheelController {
         model.isVisible = true
     }
 
-    private func dismiss() {
+}
+
+private extension DragWheelController {
+    func dismiss() {
         model.isVisible = false
         model.clearHover()
         closeTask?.cancel()

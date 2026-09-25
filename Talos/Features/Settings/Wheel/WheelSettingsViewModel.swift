@@ -22,15 +22,10 @@ final class WheelDragPosition {
 }
 
 /// Keeps edits provisional until a drag finishes. Cancellation never persists
-/// the draft, and hidden entries retain their order when a filtered tile moves.
+/// the draft.
 @MainActor
 @Observable
 final class WheelSettingsViewModel {
-    var selectedPreviewContext = WheelPreviewContext.image {
-        didSet {
-            if oldValue != selectedPreviewContext { resetInteractions() }
-        }
-    }
     var editingEntry: WheelItem?
 
     let dragPosition = WheelDragPosition()
@@ -68,9 +63,7 @@ final class WheelSettingsViewModel {
     }
 
     var visibleEntries: [WheelItem] {
-        (draftEntries ?? currentEntries).filter {
-            $0.supports(selectedPreviewContext, using: availableTiles)
-        }
+        (draftEntries ?? currentEntries).filter { $0.isAvailable(using: availableTiles) }
     }
 
     var ghostEntryID: WheelItem.ID? { draggedEntry?.id }
@@ -94,7 +87,6 @@ final class WheelSettingsViewModel {
     }
 
     func addTile(_ tile: WheelTilePresentation) {
-        selectSupportedContext(for: tile)
         addToWheel(.action(tile.id))
     }
 
@@ -120,7 +112,7 @@ final class WheelSettingsViewModel {
             ? .slot(WheelLayout.editor.insertionIndex(at: localPoint, count: insertionOffsets.count))
             : .outside
 
-        // Filtering and building a new draft only happen when the slot changes.
+        // Building a new draft only happens when the slot changes.
         guard destination != lastDestination else { return }
         lastDestination = destination
         dragIsInsideWheel = isInside
@@ -210,8 +202,7 @@ final class WheelSettingsViewModel {
         case .folder:
             entry = .folder(String(localized: "Folder"))
         case let .tile(id):
-            guard let tile = availableTiles.first(where: { $0.id == id }) else { return }
-            selectSupportedContext(for: tile)
+            guard availableTiles.contains(where: { $0.id == id }) else { return }
             entry = .action(id)
         case let .entry(id):
             guard let existing = currentEntries.first(where: { $0.id == id }) else { return }
@@ -222,7 +213,7 @@ final class WheelSettingsViewModel {
         entriesWithoutDragged = originalEntries.filter { $0.id != entry.id }
         let tiles = availableTiles
         let visibleOffsets = entriesWithoutDragged.indices.filter {
-            entriesWithoutDragged[$0].supports(selectedPreviewContext, using: tiles)
+            entriesWithoutDragged[$0].isAvailable(using: tiles)
         }
         insertionOffsets = visibleOffsets + [visibleOffsets.last.map { $0 + 1 } ?? entriesWithoutDragged.count]
         draggedEntry = entry
@@ -240,10 +231,4 @@ final class WheelSettingsViewModel {
         ))
     }
 
-    private func selectSupportedContext(for tile: WheelTilePresentation) {
-        guard !tile.supportedContexts.contains(selectedPreviewContext) else { return }
-        if let context = WheelPreviewContext.allCases.first(where: { tile.supportedContexts.contains($0) }) {
-            selectedPreviewContext = context
-        }
-    }
 }

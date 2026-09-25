@@ -4,6 +4,39 @@ import UniformTypeIdentifiers
 nonisolated struct DraggedFile: Sendable {
     let url: URL
     let contentType: UTType
+
+    enum Category: CaseIterable {
+        case image, pdf, video, audio, other
+
+        var title: String {
+            switch self {
+            case .image: String(localized: "Images")
+            case .pdf: String(localized: "PDFs")
+            case .video: String(localized: "Videos")
+            case .audio: String(localized: "Audio")
+            case .other: String(localized: "Files")
+            }
+        }
+
+        var symbolName: String {
+            switch self {
+            case .image: "photo"
+            case .pdf: "doc.richtext"
+            case .video: "film"
+            case .audio: "waveform"
+            case .other: "doc"
+            }
+        }
+    }
+
+    var category: Category {
+        if contentType.conforms(to: .folder) { return .other }
+        if contentType.conforms(to: .pdf) { return .pdf }
+        if contentType.conforms(to: .image) { return .image }
+        if contentType.conforms(to: .movie) { return .video }
+        if contentType.conforms(to: .audio) { return .audio }
+        return .other
+    }
 }
 
 actor DraggedFileInspector {

@@ -31,17 +31,11 @@ struct WheelSettingsView: View {
             .background(.primary.opacity(0.04), ignoresSafeAreaEdges: [])
 
             VStack(spacing: 0) {
-                Text("Drag tiles onto the wheel to add them.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.top)
-
-                Spacer(minLength: 12)
+                Spacer()
 
                 WheelPreview(
                     entries: viewModel.visibleEntries,
                     tiles: viewModel.availableTiles,
-                    context: viewModel.selectedPreviewContext,
                     ghostEntryID: viewModel.ghostEntryID,
                     pressedFolderID: viewModel.pressedFolderID,
                     folderPressStartedAt: viewModel.folderPressStartedAt,
@@ -58,19 +52,7 @@ struct WheelSettingsView: View {
                     viewModel.updateWheelFrame(frame)
                 }
 
-                Spacer(minLength: 12)
-
-                Picker("Preview context", selection: $viewModel.selectedPreviewContext) {
-                    ForEach(WheelPreviewContext.allCases) { context in
-                        Text(context.title)
-                            .tag(context)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 390)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 18)
+                Spacer()
             }
             .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
         }

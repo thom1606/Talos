@@ -3,7 +3,7 @@ import SwiftUI
 /// Visual gaps are decorative; file-drop hit testing partitions the full ring.
 nonisolated struct WheelLayout: Equatable {
     static let runtime = Self(size: 336, outerRadius: 146, innerRadius: 57, centerRadius: 44, cornerRadius: 11, progressOffset: 9)
-    static let editor = Self(size: 300, outerRadius: 128, innerRadius: 52, centerRadius: 41, cornerRadius: 10, progressOffset: 8)
+    static let editor = runtime
 
     let size: CGFloat
     let outerRadius: CGFloat

@@ -79,7 +79,6 @@
 "Repository operation failed" = "Repositorybewerking mislukt";
 "Check for updates" = "Controleren op updates";
 "Repository actions" = "Repositoryacties";
-"Drag tiles onto the wheel to add them." = "Sleep tegels naar het wiel om ze toe te voegen.";
 "Tiles" = "Tegels";
 "Wheel tiles" = "Wieltegel";
 "Drag onto the wheel" = "Sleep naar het wiel";
@@ -116,7 +115,6 @@
 "Edit Action" = "Actie bewerken";
 "Extension" = "Extensie";
 "Open folder" = "Map openen";
-"Preview context" = "Voorbeeldcontext";
 "Press to edit. Press and hold to open." = "Druk om te bewerken. Houd ingedrukt om te openen.";
 "Press to edit settings." = "Druk om instellingen te bewerken.";
 "Repository URL" = "Repository-URL";

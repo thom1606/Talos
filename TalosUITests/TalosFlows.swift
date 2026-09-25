@@ -62,7 +62,7 @@ final class TalosFlows: XCTestCase {
         navigate("Repositories")
         XCTAssertTrue(app.staticTexts["No repositories"].waitForExistence(timeout: 5))
         navigate("Wheel")
-        XCTAssertTrue(app.staticTexts["Drag tiles onto the wheel to add them."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["wheel.preview"].firstMatch.waitForExistence(timeout: 5))
         app.terminate()
         app.launch()
         showSettingsWindow()
