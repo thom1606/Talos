@@ -29,7 +29,7 @@ struct WindowMarkdownView: View {
     }
 }
 
-struct WindowMarkdownBlock: Identifiable {
+nonisolated struct WindowMarkdownBlock: Identifiable {
     let id: Int
     let kind: PresentationIntent.Kind
     var text = AttributedString()
