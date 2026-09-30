@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import QuickLookUI
 import SwiftUI
 
 @MainActor
@@ -20,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var toastController = ToastController()
     private lazy var dialogController = DialogController()
     private lazy var extensionWindowController = ExtensionWindowController()
+    private let quickLookController = QuickLookPreviewController()
     fileprivate let notificationService = NotificationService()
     fileprivate lazy var repositoriesModel = RepositoriesModel(notifications: notificationService) { [weak self] in
         self?.reloadExtensions()
@@ -127,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         wheelController.stop()
         toastController.stop()
         extensionWindowController.closeAll()
+        quickLookController.close()
 
         Task {
             await sdkRuntime.deactivateAll()
@@ -285,7 +288,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task {
                 do {
                     let resources = try await sdkRuntime.windowResources(for: request)
-                    try extensionWindowController.show(request, resources: resources, runtime: sdkRuntime)
+                    if request.kind == .quickLook {
+                        try await quickLookController.show(resources.inputFiles, renderMarkdown: request.renderMarkdown) { [sdkRuntime] in
+                            Task { await sdkRuntime.closeWindow(request) }
+                        }
+                    } else {
+                        try extensionWindowController.show(request, resources: resources, runtime: sdkRuntime)
+                    }
                 } catch {
                     await sdkRuntime.closeWindow(request)
                     toastController.show(.init(message: error.localizedDescription, kind: .failure))
@@ -315,6 +324,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .console:
             break // Console output is handled directly on the pipe's callback queue.
         }
+    }
+
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        quickLookController.hasItems
+    }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        quickLookController.beginControl(panel)
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        quickLookController.endControl(panel)
     }
 }
 

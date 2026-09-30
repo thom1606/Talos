@@ -886,6 +886,8 @@ nonisolated struct TalosWindowReply: Sendable, Equatable {
 }
 
 nonisolated struct TalosWindowRequest: Sendable, Equatable {
+    enum Kind: Sendable, Equatable { case content, quickLook }
+
     let title: String
     let content: String
     let width: Double?
@@ -897,6 +899,8 @@ nonisolated struct TalosWindowRequest: Sendable, Equatable {
     var extensionID: String = ""
     var sessionID: UUID = UUID()
     var windowID: String? = nil
+    var kind: Kind = .content
+    var renderMarkdown = true
 }
 
 nonisolated struct TalosWindowResources: Sendable {
@@ -1044,6 +1048,16 @@ nonisolated final class RuntimeOutputReader: @unchecked Sendable {
             guard let id = message.requestID else { return console("Missing window request ID", level: .warn) }
             return .windowReply(.init(extensionID: extensionID, sessionID: sessionID, requestID: id,
                                       resultJSON: message.parameters.resultJSON, error: message.parameters.error))
+        case "openQuickLook":
+            guard let filePaths = message.parameters.filePaths, !filePaths.isEmpty else {
+                return console("Extension sent an empty Quick Look selection", level: .warn)
+            }
+            return .openWindow(.init(
+                title: "Quick Look", content: "", width: nil, height: nil,
+                filePaths: filePaths, extensionID: extensionID, sessionID: sessionID,
+                windowID: message.parameters.windowID, kind: .quickLook,
+                renderMarkdown: message.parameters.renderMarkdown ?? true
+            ))
         case "openWindow":
             guard
                 let title = message.parameters.title,
@@ -1138,6 +1152,7 @@ nonisolated private struct RuntimeOutputMessage: Decodable {
         let filePaths: [String]?
         let width: Double?
         let height: Double?
+        let renderMarkdown: Bool?
         let kind: String?
         let level: String?
     }
