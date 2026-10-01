@@ -217,7 +217,7 @@ final class TalosFlows: XCTestCase {
         try Data("not a zip".utf8).write(to: archive)
         importPackage(archive)
         XCTAssertTrue(app.staticTexts["The Talos package is invalid or unsafe."].waitForExistence(timeout: 10))
-        app.buttons["OK"].click()
+        app.windows["settings"].sheets.buttons["OK"].click()
         XCTAssertTrue(app.staticTexts["2.0.0"].exists)
         app.menuButtons["Repository actions"].click()
         app.menuItems["Remove"].click()
