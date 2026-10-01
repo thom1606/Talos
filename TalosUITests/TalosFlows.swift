@@ -218,8 +218,12 @@ final class TalosFlows: XCTestCase {
         importPackage(archive)
         XCTAssertTrue(app.staticTexts["The Talos package is invalid or unsafe."].waitForExistence(timeout: 10))
         app.windows["settings"].sheets.buttons["OK"].click()
+        XCTAssertTrue(app.windows["settings"].sheets.firstMatch.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["2.0.0"].exists)
-        app.menuButtons["Repository actions"].click()
+        // macOS restores this menu as "More" after dismissing a sheet. Its image identifier is stable.
+        let actions = app.windows["settings"].menuButtons["ellipsis"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 5))
+        actions.click()
         app.menuItems["Remove"].click()
         XCTAssertTrue(app.staticTexts["No repositories"].waitForExistence(timeout: 10))
         navigate("Wheel")
