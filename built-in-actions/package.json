@@ -53,6 +53,22 @@
       ]
     },
     {
+      "name": "redact",
+      "displayName": "Redact",
+      "icon": "rectangle.fill",
+      "description": "Hide parts of an image with black blocks.",
+      "supportedFileTypes": [
+        "public.png",
+        "public.jpeg",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp"
+      ]
+    },
+    {
       "name": "archive",
       "displayName": "Archive",
       "icon": "archivebox",

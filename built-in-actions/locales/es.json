@@ -60,6 +60,10 @@
     "organize": {
       "displayName": "Organizar",
       "description": "Organiza los elementos seleccionados en carpetas con Apple Intelligence."
+    },
+    "redact": {
+      "displayName": "Ocultar",
+      "description": "Oculta partes de una imagen con bloques negros."
     }
   },
   "crop": {
@@ -115,5 +119,12 @@
     "sorting": "Ordenando internamente…",
     "moving": "Moviendo elementos…",
     "done": "Archivos movidos."
+  },
+  "redact": {
+    "title": "Ocultar",
+    "help": "Arrastra para dibujar un bloque negro. Selecciónalo para moverlo o cambiar su tamaño; pulsa Retroceso para eliminarlo.",
+    "saveCopy": "Guardar copia ocultada",
+    "noInput": "Suelta una imagen en esta acción para ocultar partes.",
+    "block": "Área oculta {number}"
   }
 }

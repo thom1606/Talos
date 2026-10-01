@@ -14,6 +14,10 @@ process and output handling in `shared.ts` and JPEG/PNG helpers beside Compress.
   they write `-cropped` beside the original.
   Video is re-encoded using VideoToolbox, audio is copied, and the container stays the same.
   HDR video and other video containers are rejected rather than silently changing their appearance.
+- **Redact:** images only. Drag to draw solid black blocks, select and move them, resize with handles,
+  or delete with Backspace/Delete. Reset removes all blocks. Saves a numbered `-redacted` copy beside
+  the original (PNG stays PNG; other images become JPEG). Blocks are baked into the pixels;
+  image metadata is not copied.
 - **Archive:** selection (including folders) becomes `Archive.zip` beside the first input.
   Files stream directly into the ZIP without a copied staging folder. Duplicate basenames are numbered;
   symlinks remain symlinks; originals stay untouched.
@@ -47,6 +51,14 @@ and signing identity. Runtime dependencies are shipped; users need neither Homeb
 The app build copies `dist/talos-actions.talos` into `Contents/Resources/BundledExtensions`.
 Installed built-ins are cached separately by package SHA-256 and refreshed when the app ships a new archive.
 New installations start with Crop, Archive, Organize, Compress, Convert, and Settings.
+
+## Image export checks
+
+After building the image tool, run its real pixel and orientation checks (Python 3 with Pillow):
+
+```sh
+python3 tests/image-tool.py "vendor/bin/$(uname -m)/image-tool"
+```
 
 ## Codec distribution
 

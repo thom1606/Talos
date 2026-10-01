@@ -60,6 +60,10 @@
     "organize": {
       "displayName": "Organiser",
       "description": "Organiser les éléments sélectionnés en dossiers avec Apple Intelligence."
+    },
+    "redact": {
+      "displayName": "Masquer",
+      "description": "Masquer des parties d’une image avec des blocs noirs."
     }
   },
   "crop": {
@@ -115,5 +119,12 @@
     "sorting": "Tri des éléments…",
     "moving": "Déplacement des éléments…",
     "done": "Fichiers déplacés."
+  },
+  "redact": {
+    "title": "Masquer",
+    "help": "Faites glisser pour dessiner un bloc noir. Sélectionnez-le pour le déplacer ou le redimensionner ; appuyez sur Retour arrière pour le supprimer.",
+    "saveCopy": "Enregistrer la copie masquée",
+    "noInput": "Déposez une image sur cette action pour en masquer des parties.",
+    "block": "Zone masquée {number}"
   }
 }

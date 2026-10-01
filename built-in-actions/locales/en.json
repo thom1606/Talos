@@ -60,6 +60,10 @@
     "organize": {
       "displayName": "Organize",
       "description": "Organize selected items into folders with Apple Intelligence."
+    },
+    "redact": {
+      "displayName": "Redact",
+      "description": "Hide parts of an image with black blocks."
     }
   },
   "crop": {
@@ -115,5 +119,12 @@
     "sorting": "Sorting internally…",
     "moving": "Moving items…",
     "done": "Files moved."
+  },
+  "redact": {
+    "title": "Redact",
+    "help": "Drag to draw a black block. Select a block to move or resize it; press Backspace to delete it.",
+    "saveCopy": "Save Redacted Copy",
+    "noInput": "Drop an image onto this action to redact it.",
+    "block": "Redaction {number}"
   }
 }

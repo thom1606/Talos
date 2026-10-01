@@ -60,6 +60,10 @@
     "organize": {
       "displayName": "Ordenen",
       "description": "Orden geselecteerde items in mappen met Apple Intelligence."
+    },
+    "redact": {
+      "displayName": "Zwartmaken",
+      "description": "Verberg delen van een afbeelding met zwarte blokken."
     }
   },
   "crop": {
@@ -115,5 +119,12 @@
     "sorting": "Intern sorteren…",
     "moving": "Items verplaatsen…",
     "done": "Bestanden verplaatst."
+  },
+  "redact": {
+    "title": "Zwartmaken",
+    "help": "Sleep om een zwart blok te tekenen. Selecteer een blok om het te verplaatsen of te vergroten; druk op Backspace om het te verwijderen.",
+    "saveCopy": "Zwartgemaakte kopie opslaan",
+    "noInput": "Sleep een afbeelding naar deze actie om delen zwart te maken.",
+    "block": "Zwart blok {number}"
   }
 }

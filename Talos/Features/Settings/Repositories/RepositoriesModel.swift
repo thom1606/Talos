@@ -7,6 +7,7 @@ final class RepositoriesModel {
     private(set) var repositories: [RepositoryPresentation] = []
     private(set) var tiles: [WheelTilePresentation] = []
     var presentedError: RepositoryPresentationError?
+    private(set) var isImportingPackage = false
     var showsPackageImporter = false
     var showsProjectImporter = false
     var showsGitHubForm = false
@@ -157,6 +158,18 @@ final class RepositoriesModel {
             }
         }
 
+        for link in GitHubRepositoryStore.imported(in: defaults) {
+            let directory = SDKRuntime.defaultExtensionsDirectory.appendingPathComponent(link.extensionID)
+            let package = try? LocalProjectPackage.read(from: directory)
+            let name = package?.displayName(in: directory) ?? link.filename
+            presentations.append(.init(id: link.id, name: name, source: link.filename, kind: .package,
+                                       installedVersion: link.version, status: package == nil ? .buildRequired : .running))
+            if let package {
+                let existing = Set(availableTiles.map(\.id))
+                availableTiles.append(contentsOf: package.wheelTiles(extensionName: name).filter { !existing.contains($0.id) })
+            }
+        }
+
         repositories = presentations.sorted {
             $0.name.localizedStandardCompare($1.name) == .orderedAscending
         }
@@ -209,7 +222,7 @@ final class RepositoriesModel {
         if GitHubRepositoryStore.installed(in: defaults).contains(where: { $0.id == id }) {
             guard repositories.first(where: { $0.id == id })?.status.isProgressing != true else { return }
             updateMonitor.check(repositoryID: id, manually: true)
-        } else if localProjects.contains(where: { $0.id == id }) {
+        } else if localProjects.contains(where: { $0.id == id }) || GitHubRepositoryStore.imported(in: defaults).contains(where: { $0.id == id }) {
             reloadPresentations()
             extensionsDidChange()
         }
@@ -239,6 +252,16 @@ final class RepositoriesModel {
     }
 
     func removeRepository(id: String) {
+        if let package = GitHubRepositoryStore.imported(in: defaults).first(where: { $0.id == id }) {
+            Task {
+                do {
+                    try await githubStore.removeImported(package)
+                    reloadPresentations()
+                    extensionsDidChange()
+                } catch { present(error) }
+            }
+            return
+        }
         if let link = GitHubRepositoryStore.installed(in: defaults).first(where: { $0.id == id }) {
             Task {
                 do {
@@ -259,9 +282,16 @@ final class RepositoriesModel {
     }
 
     func addImportedPackage(_ url: URL) {
-        presentedError = .init(
-            message: "Importing \(url.lastPathComponent) will be connected in the package installation step."
-        )
+        guard !isImportingPackage else { return }
+        isImportingPackage = true
+        Task {
+            defer { isImportingPackage = false }
+            do {
+                try await githubStore.importPackage(url)
+                reloadPresentations()
+                extensionsDidChange()
+            } catch { present(error) }
+        }
     }
 
     func addGitHubRepository(_ url: String, token: String) async throws {

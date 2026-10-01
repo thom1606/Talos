@@ -32,7 +32,8 @@ actor SDKRuntime {
     @discardableResult
     func loadExtensions(
         from directory: URL = SDKRuntime.defaultExtensionsDirectory,
-        developmentProjects: [LocalProjectLink] = []
+        developmentProjects: [LocalProjectLink] = [],
+        importedPackageIDs: Set<String> = []
     ) throws -> [ExtensionLoadFailure] {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -65,7 +66,7 @@ actor SDKRuntime {
             }
         }
 
-        // App-owned packages have a separate versioned cache: remote installs cannot replace them.
+        // App-owned packages have a separate cache. Only explicit local imports may override them.
         if let bundledDirectory, fileManager.fileExists(atPath: bundledDirectory.path) {
             for archive in try fileManager.contentsOfDirectory(at: bundledDirectory, includingPropertiesForKeys: nil)
                 .filter({ $0.pathExtension == "talos" }).sorted(by: { $0.path < $1.path }) {
@@ -84,7 +85,9 @@ actor SDKRuntime {
                     guard Self.isIdentifier(id) else { throw SDKRuntimeError.invalidManifest("Invalid bundled package ID") }
                     var package = try Self.loadExtension(from: cache.appendingPathComponent(id))
                     package.isBundled = true
-                    loaded[package.id] = package
+                    if !importedPackageIDs.contains(package.id) || loaded[package.id] == nil {
+                        loaded[package.id] = package
+                    }
                 } catch { failures.append(.init(directory: archive, message: error.localizedDescription)) }
             }
         }

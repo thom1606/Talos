@@ -68,7 +68,7 @@ nonisolated enum GitHubRepositoryError: LocalizedError {
         case .releaseUnavailable: "No published release is available, or the token cannot read releases. Private repositories require read-only Contents permission."
         case .releasePackage: "The latest release must contain exactly one .talos package."
         case .packageTooLarge: "This extension exceeds the download or extraction size limit."
-        case .invalidPackage: "The release contains an invalid or unsafe Talos package."
+        case .invalidPackage: "The Talos package is invalid or unsafe."
         case .unsafeDownload: "GitHub returned an unsupported download destination."
         case .identityMismatch: "This release uses a different extension ID from the installed version."
         case .alreadyInstalled: "Another source already installed an extension with this ID. Remove it before adding this repository."

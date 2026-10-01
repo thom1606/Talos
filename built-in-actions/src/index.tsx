@@ -4,6 +4,7 @@ import { archive } from './operations/archive';
 import { compress } from './operations/compress';
 import { convert, homogeneous } from './operations/convert';
 import { cropVideo } from './operations/crop-video';
+import { redactImage } from './operations/redact-image';
 import { cropImage } from './operations/crop-image';
 import { stopOperations } from './operations/shared';
 import { organize } from './operations/organize';
@@ -19,6 +20,13 @@ export async function activate(context: TalosContext) {
       return;
     }
     switch (context.action) {
+      case 'redact':
+        talos.openWindow({ title: t('redact.title'), children: <CropWindow mode="redact" />, width: 480, height: 680,
+          onRequest: async (method, payload, context, signal) => {
+            if (method !== 'redactImage' || !payload || typeof payload !== 'object') throw new Error('Unknown redact request');
+            return redactImage(context, payload as Record<string, unknown>, signal);
+          } });
+        break;
       case 'crop':
         talos.openWindow({ title: t('crop.title'), children: <CropWindow />, width: 480, height: 680,
           onRequest: async (method, payload, context, signal) => {

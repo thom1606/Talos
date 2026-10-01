@@ -60,6 +60,10 @@
     "organize": {
       "displayName": "Organisieren",
       "description": "Ausgewählte Elemente mit Apple Intelligence in Ordner sortieren."
+    },
+    "redact": {
+      "displayName": "Schwärzen",
+      "description": "Bildbereiche mit schwarzen Blöcken verdecken."
     }
   },
   "crop": {
@@ -115,5 +119,12 @@
     "sorting": "Intern sortieren…",
     "moving": "Elemente verschieben…",
     "done": "Dateien verschoben."
+  },
+  "redact": {
+    "title": "Schwärzen",
+    "help": "Ziehen, um einen schwarzen Block zu zeichnen. Einen Block zum Verschieben oder Skalieren auswählen; mit der Rücktaste löschen.",
+    "saveCopy": "Geschwärzte Kopie sichern",
+    "noInput": "Ein Bild auf diese Aktion ziehen, um Bereiche zu schwärzen.",
+    "block": "Schwärzung {number}"
   }
 }
