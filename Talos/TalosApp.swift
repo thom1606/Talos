@@ -224,12 +224,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let runtime = sdkRuntime
         let developmentProjects = LocalProjectLinkStore.load()
+        let importedPackageIDs = Set(GitHubRepositoryStore.imported(in: TalosPreferences.defaults).map(\.extensionID))
         extensionLoadTask = Task { [weak self] in
             guard let self else { return }
 
             do {
                 let failures = try await runtime.loadExtensions(
-                    developmentProjects: developmentProjects
+                    developmentProjects: developmentProjects,
+                    importedPackageIDs: importedPackageIDs
                 )
                 guard !Task.isCancelled else { return }
 

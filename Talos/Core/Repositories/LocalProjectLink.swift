@@ -14,7 +14,7 @@ enum LocalProjectLinkStore {
         load(from: TalosPreferences.defaults)
     }
 
-    static func load(from defaults: UserDefaults) -> [LocalProjectLink] {
+    nonisolated static func load(from defaults: UserDefaults) -> [LocalProjectLink] {
         defaults.data(forKey: TalosPreferenceKey.linkedLocalProjects)
             .flatMap { try? JSONDecoder().decode([LocalProjectLink].self, from: $0) }
             ?? []

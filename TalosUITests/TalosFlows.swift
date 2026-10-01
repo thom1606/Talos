@@ -170,6 +170,76 @@ final class TalosFlows: XCTestCase {
         XCTAssertTrue(app.staticTexts["No repositories"].waitForExistence(timeout: 5))
     }
 
+    func testPackageImportReplacesBuiltInPersistsAndRestoresOnRemoval() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("Talos-Import-\(UUID())")
+        projectFixture = root
+        let source = root.appendingPathComponent("source")
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        let archive = root.appendingPathComponent("test.talos")
+        func package(version: String, title: String) throws {
+            try Data("""
+            {"name":"Imported Test Tools","version":"\(version)",
+             "talos":{"bundleId":"talos-actions","entry":"index.mjs","locales":{"en":"en.json"}},
+             "commands":[{"name":"crop","displayName":"\(title)","icon":"crop","supportedFileTypes":["*"]}]}
+            """.utf8).write(to: source.appendingPathComponent("package.json"))
+            try Data("export async function activate() {}".utf8).write(to: source.appendingPathComponent("index.mjs"))
+            try Data("{}".utf8).write(to: source.appendingPathComponent("en.json"))
+            if FileManager.default.fileExists(atPath: archive.path) { try FileManager.default.removeItem(at: archive) }
+            let process = Process()
+            process.executableURL = URL(filePath: "/usr/bin/ditto")
+            process.arguments = ["-c", "-k", "--norsrc", "--noextattr", source.path, archive.path]
+            try process.run()
+            process.waitUntilExit()
+            XCTAssertEqual(process.terminationStatus, 0)
+        }
+        try package(version: "1.0.0", title: "Imported Crop")
+        finishOnboarding()
+        navigate("Repositories")
+        importPackage(archive)
+        XCTAssertTrue(app.staticTexts["Imported Test Tools"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        navigate("Wheel")
+        let wheel = app.descendants(matching: .any)["wheel.preview"].firstMatch
+        XCTAssertTrue(wheel.buttons["Imported Crop"].waitForExistence(timeout: 10))
+        app.terminate()
+        app.launch()
+        showSettingsWindow()
+        navigate("Wheel")
+        XCTAssertTrue(wheel.buttons["Imported Crop"].waitForExistence(timeout: 10))
+        navigate("Repositories")
+        try package(version: "2.0.0", title: "Updated Crop")
+        importPackage(archive)
+        XCTAssertTrue(app.staticTexts["2.0.0"].waitForExistence(timeout: 10))
+        navigate("Wheel")
+        XCTAssertTrue(wheel.buttons["Updated Crop"].waitForExistence(timeout: 10))
+        navigate("Repositories")
+        // A failed replacement must leave the working package installed.
+        try Data("not a zip".utf8).write(to: archive)
+        importPackage(archive)
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 10))
+        app.alerts.buttons["OK"].click()
+        XCTAssertTrue(app.staticTexts["2.0.0"].exists)
+        app.menuButtons["Repository actions"].click()
+        app.menuItems["Remove"].click()
+        XCTAssertTrue(app.staticTexts["No repositories"].waitForExistence(timeout: 10))
+        navigate("Wheel")
+        XCTAssertTrue(wheel.buttons["Crop"].waitForExistence(timeout: 10))
+        XCTAssertFalse(wheel.buttons["Updated Crop"].exists)
+    }
+
+    private func importPackage(_ url: URL) {
+        app.menuButtons["Add repository"].click()
+        app.menuItems["Import .talos…"].click()
+        let picker = app.sheets["open-panel"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        app.typeKey("g", modifierFlags: [.command, .shift])
+        let path = app.sheets["GoToWindow"].textFields["PathTextField"]
+        XCTAssertTrue(path.waitForExistence(timeout: 5))
+        replaceText(path, with: url.path)
+        app.typeKey(.return, modifierFlags: [])
+        picker.buttons["Open"].click()
+    }
+
     func testDragFolderOntoWheelRenameAndPersist() {
         finishOnboarding()
         let source = app.descendants(matching: .any)["wheel.palette.folder"].firstMatch

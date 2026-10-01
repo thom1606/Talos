@@ -9,6 +9,13 @@ nonisolated struct InstalledGitHubRepository: Codable, Sendable, Identifiable {
     var id: String { repository.presentationID }
 }
 
+nonisolated struct ImportedPackage: Codable, Sendable, Identifiable {
+    let extensionID: String
+    let version: String
+    let filename: String
+    var id: String { "package:\(extensionID)" }
+}
+
 /// Network and Keychain work stay off the UI actor. Credentials are never persisted in defaults.
 actor GitHubRepositoryStore {
     private let defaults: UserDefaults
@@ -29,6 +36,54 @@ actor GitHubRepositoryStore {
     nonisolated static func installed(in defaults: UserDefaults) -> [InstalledGitHubRepository] {
         defaults.data(forKey: preferenceKey)
             .flatMap { try? JSONDecoder().decode([InstalledGitHubRepository].self, from: $0) } ?? []
+    }
+
+    nonisolated static let importedPreferenceKey = "importedPackages"
+
+    nonisolated static func imported(in defaults: UserDefaults) -> [ImportedPackage] {
+        defaults.data(forKey: importedPreferenceKey)
+            .flatMap { try? JSONDecoder().decode([ImportedPackage].self, from: $0) } ?? []
+    }
+
+    func importPackage(_ url: URL) throws {
+        guard !busy else { throw GitHubRepositoryError.busy }
+        busy = true
+        defer { busy = false }
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+        guard values.isRegularFile == true else { throw GitHubRepositoryError.invalidPackage }
+        guard let size = values.fileSize, size <= GitHubRepositoryClient.maximumPackageSize else {
+            throw GitHubRepositoryError.packageTooLarge
+        }
+        let package = try installer.stage(Data(contentsOf: url), digest: nil)
+        defer { try? FileManager.default.removeItem(at: package.directory) }
+        guard !Self.installed(in: defaults).contains(where: { $0.extensionID == package.manifest.id }),
+              !LocalProjectLinkStore.load(from: defaults).contains(where: { $0.id == package.manifest.id }) else {
+            throw GitHubRepositoryError.alreadyInstalled
+        }
+        var packages = Self.imported(in: defaults)
+        let previous = packages.first { $0.extensionID == package.manifest.id }
+        packages.removeAll { $0.extensionID == package.manifest.id }
+        packages.append(.init(extensionID: package.manifest.id, version: package.manifest.version,
+                              filename: url.lastPathComponent))
+        let encoded = try JSONEncoder().encode(packages)
+        try Task.checkCancellation()
+        try installer.commit(package, replacing: previous?.extensionID)
+        defaults.set(encoded, forKey: Self.importedPreferenceKey)
+    }
+
+    func removeImported(_ package: ImportedPackage) throws {
+        guard !busy else { throw GitHubRepositoryError.busy }
+        let packages = Self.imported(in: defaults)
+        guard packages.contains(where: { $0.id == package.id && $0.extensionID == package.extensionID }) else { return }
+        let directory = installer.root.appendingPathComponent(package.extensionID).standardizedFileURL
+        guard directory.deletingLastPathComponent().path == installer.root.standardizedFileURL.path else {
+            throw GitHubRepositoryError.invalidPackage
+        }
+        let encoded = try JSONEncoder().encode(packages.filter { $0.id != package.id })
+        if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+        defaults.set(encoded, forKey: Self.importedPreferenceKey)
     }
 
     func install(url: String, token suppliedToken: String) async throws {

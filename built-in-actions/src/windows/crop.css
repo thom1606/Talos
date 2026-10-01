@@ -35,3 +35,8 @@
 .video-play-button svg { width: 18px; height: 18px; }
 .video-seek { flex: 1; min-width: 0; accent-color: var(--talosColor); }
 .video-time { flex: none; min-width: 76px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.redaction-surface { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+.redaction-surface:focus-visible:not(:has(.selected)) { outline: 2px solid var(--talosColor); outline-offset: 4px; }
+.redaction-block { position: absolute; background: #000; cursor: move; touch-action: none; }
+.redaction-block.selected { outline: 2px solid var(--talosColor); z-index: 1; }

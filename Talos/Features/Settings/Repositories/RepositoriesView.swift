@@ -25,6 +25,13 @@ struct RepositoriesView: View {
                 .formStyle(.grouped)
             }
         }
+        .overlay {
+            if model.isImportingPackage {
+                ProgressView("Installing the extension…")
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button("Refresh repositories", systemImage: "arrow.clockwise") {
@@ -35,6 +42,7 @@ struct RepositoriesView: View {
                     Button("Import .talos…", systemImage: "shippingbox") {
                         model.showsPackageImporter = true
                     }
+                    .disabled(model.isImportingPackage)
                     Button("Link local project…", systemImage: "folder") {
                         model.showsProjectImporter = true
                     }
@@ -49,8 +57,11 @@ struct RepositoriesView: View {
             allowedContentTypes: [.talosPackage],
             allowsMultipleSelection: false
         ) { result in
-            guard case let .success(urls) = result, let url = urls.first else { return }
-            model.addImportedPackage(url)
+            switch result {
+            case let .success(urls):
+                if let url = urls.first { model.addImportedPackage(url) }
+            case let .failure(error): model.present(error)
+            }
         }
         .fileImporter(
             isPresented: $model.showsProjectImporter,
