@@ -216,8 +216,8 @@ final class TalosFlows: XCTestCase {
         // A failed replacement must leave the working package installed.
         try Data("not a zip".utf8).write(to: archive)
         importPackage(archive)
-        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 10))
-        app.alerts.buttons["OK"].click()
+        XCTAssertTrue(app.staticTexts["The Talos package is invalid or unsafe."].waitForExistence(timeout: 10))
+        app.buttons["OK"].click()
         XCTAssertTrue(app.staticTexts["2.0.0"].exists)
         app.menuButtons["Repository actions"].click()
         app.menuItems["Remove"].click()
