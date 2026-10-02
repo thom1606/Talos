@@ -123,7 +123,7 @@
   "redact": {
     "title": "Masquer",
     "help": "Faites glisser pour dessiner un bloc noir. Sélectionnez-le pour le déplacer ou le redimensionner ; appuyez sur Retour arrière pour le supprimer.",
-    "saveCopy": "Enregistrer la copie masquée",
+    "saveCopy": "Enregistrer",
     "noInput": "Déposez une image sur cette action pour en masquer des parties.",
     "block": "Zone masquée {number}"
   }

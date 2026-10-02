@@ -39,4 +39,4 @@
 .redaction-surface { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
 .redaction-surface:focus-visible:not(:has(.selected)) { outline: 2px solid var(--talosColor); outline-offset: 4px; }
 .redaction-block { position: absolute; background: #000; cursor: move; touch-action: none; }
-.redaction-block.selected { outline: 2px solid var(--talosColor); z-index: 1; }
+.redaction-block.selected { outline: 2px solid var(--talosColor); outline-offset: -2px; z-index: 1; }

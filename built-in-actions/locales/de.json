@@ -123,7 +123,7 @@
   "redact": {
     "title": "Schwärzen",
     "help": "Ziehen, um einen schwarzen Block zu zeichnen. Einen Block zum Verschieben oder Skalieren auswählen; mit der Rücktaste löschen.",
-    "saveCopy": "Geschwärzte Kopie sichern",
+    "saveCopy": "Speichern",
     "noInput": "Ein Bild auf diese Aktion ziehen, um Bereiche zu schwärzen.",
     "block": "Schwärzung {number}"
   }

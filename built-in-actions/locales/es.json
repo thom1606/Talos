@@ -123,7 +123,7 @@
   "redact": {
     "title": "Ocultar",
     "help": "Arrastra para dibujar un bloque negro. Selecciónalo para moverlo o cambiar su tamaño; pulsa Retroceso para eliminarlo.",
-    "saveCopy": "Guardar copia ocultada",
+    "saveCopy": "Guardar",
     "noInput": "Suelta una imagen en esta acción para ocultar partes.",
     "block": "Área oculta {number}"
   }

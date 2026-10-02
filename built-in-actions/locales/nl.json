@@ -123,7 +123,7 @@
   "redact": {
     "title": "Zwartmaken",
     "help": "Sleep om een zwart blok te tekenen. Selecteer een blok om het te verplaatsen of te vergroten; druk op Backspace om het te verwijderen.",
-    "saveCopy": "Zwartgemaakte kopie opslaan",
+    "saveCopy": "Opslaan",
     "noInput": "Sleep een afbeelding naar deze actie om delen zwart te maken.",
     "block": "Zwart blok {number}"
   }
