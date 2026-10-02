@@ -4,6 +4,7 @@ import Foundation
 enum TalosPreferenceKey {
     static let completedOnboarding = "completedOnboarding"
     static let automaticUpdates = "automaticUpdates"
+    static let pendingAppUpdateBuild = "pendingAppUpdateBuild"
     static let completionSound = "completionSound"
     static let hoverSound = "hoverSound"
     static let linkedLocalProjects = "linkedLocalProjects"

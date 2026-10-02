@@ -29,14 +29,14 @@ final class AdvancedSettingsModel {
         self.init(defaults: TalosPreferences.defaults)
     }
 
-    init(defaults: UserDefaults) {
+    init(defaults: UserDefaults, updaterDelegate: SPUUpdaterDelegate? = nil) {
         self.defaults = defaults
         automaticallyChecksForUpdates = defaults.bool(
             forKey: TalosPreferenceKey.automaticUpdates
         )
         updaterController = SPUStandardUpdaterController(
             startingUpdater: false,
-            updaterDelegate: nil,
+            updaterDelegate: updaterDelegate,
             userDriverDelegate: nil
         )
         refreshLoginItemStatus()
