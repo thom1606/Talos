@@ -292,9 +292,10 @@ final class TalosFlows: XCTestCase {
     func testBuiltInCropExportsSelectedDimensions() throws {
         let directory = try mediaFixture("crop")
         finishOnboarding(openSettings: false)
-        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -105))
         let window = app.windows["Crop"]
-        XCTAssertTrue(window.waitForExistence(timeout: 15), "A single Finder drop must open Crop")
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -105)) {
+            XCTAssertTrue(window.waitForExistence(timeout: 15), "A single Finder drop must open Crop")
+        }
         let width = window.textFields["Width"]
         XCTAssertTrue(width.waitForExistence(timeout: 15))
         replaceText(width, with: "160")
@@ -314,8 +315,9 @@ final class TalosFlows: XCTestCase {
         // The output can appear before the window finishes closing.
         XCTAssertTrue(window.waitForNonExistence(timeout: 10))
         // Drop the original again to verify collision-safe naming.
-        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105))
-        XCTAssertTrue(window.waitForExistence(timeout: 15))
+        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105)) {
+            XCTAssertTrue(window.waitForExistence(timeout: 15))
+        }
         XCTAssertTrue(width.waitForExistence(timeout: 15))
         replaceText(width, with: "160")
         width.typeKey(.tab, modifierFlags: [])
@@ -332,9 +334,10 @@ final class TalosFlows: XCTestCase {
         let directory = try mediaFixture("convert")
         finishOnboarding(openSettings: false)
         // Hover Convert to enter its submenu, then release over TIFF in the child wheel.
-        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: -60, dy: 85))
         let output = directory.appendingPathComponent("sample-converted.tiff")
-        waitForFile(output)
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: -60, dy: 85)) {
+            waitForFile(output)
+        }
         XCTAssertFalse(app.windows["Convert"].exists)
         let result = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: output)))
         XCTAssertEqual(result.pixelsWide, 320)
@@ -346,9 +349,10 @@ final class TalosFlows: XCTestCase {
         finishOnboarding(openSettings: false)
         let input = directory.appendingPathComponent("sample.png")
         // Six default actions put Compress at the bottom of the image wheel.
-        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: 105))
         let output = directory.appendingPathComponent("sample-compressed.png")
-        waitForFile(output)
+        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: 105)) {
+            waitForFile(output)
+        }
         let originalData = try Data(contentsOf: input), outputData = try Data(contentsOf: output)
         XCTAssertLessThan(outputData.count, originalData.count)
         let original = try XCTUnwrap(NSBitmapImageRep(data: originalData))
@@ -364,9 +368,10 @@ final class TalosFlows: XCTestCase {
         let directory = try mediaFixture("video")
         let input = directory.appendingPathComponent("sample.mp4")
         finishOnboarding(openSettings: false)
-        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105))
         let window = app.windows["Crop"]
-        XCTAssertTrue(window.waitForExistence(timeout: 15))
+        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105)) {
+            XCTAssertTrue(window.waitForExistence(timeout: 15))
+        }
         let preview = window.buttons["Play preview"]
         XCTAssertTrue(preview.waitForExistence(timeout: 15), "Local video metadata must load without copying all bytes through JSON")
         let screenshot = window.screenshot()
@@ -399,9 +404,10 @@ final class TalosFlows: XCTestCase {
         let directory = try mediaFixture("archive")
         finishOnboarding(openSettings: false)
         // Unsupported actions stay visible, so Archive remains the second of six segments.
-        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 91, dy: -52), includingFile: "notes.txt")
         let output = directory.appendingPathComponent("Archive.zip")
-        waitForFile(output)
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 91, dy: -52), includingFile: "notes.txt") {
+            waitForFile(output)
+        }
         for name in ["sample.png", "notes.txt"] {
             let process = Process(), pipe = Pipe()
             process.executableURL = URL(filePath: "/usr/bin/unzip")
@@ -433,7 +439,7 @@ final class TalosFlows: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [exists], timeout: 20), .completed, "Missing output: \(url.lastPathComponent)")
     }
 
-    private func dropOnWheel(file: URL, offset: CGVector, includingFile: String? = nil) {
+    private func dropOnWheel(file: URL, offset: CGVector, includingFile: String? = nil, verifyDrop: () -> Void) {
         let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
         finder.activate()
         finder.typeKey("g", modifierFlags: [.command, .shift])
@@ -450,6 +456,8 @@ final class TalosFlows: XCTestCase {
         let point = source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         XCUIElement.perform(withKeyModifiers: .shift) {
             point.click(forDuration: 0.2, thenDragTo: point.withOffset(offset), withVelocity: XCUIGestureVelocity(rawValue: 40), thenHoldForDuration: 1.2)
+            // Keep the activation key down until AppKit has delivered the mouse-up/drop callbacks.
+            verifyDrop()
         }
     }
 
