@@ -86,11 +86,13 @@ final class DragWheelController {
     }
 
     func beginDestinationDrag() {
+        traceDrag("destination entered")
         isReceivingDrag = true
         preparedDrop = nil
     }
 
     func endDestinationDrag() {
+        traceDrag("destination ended")
         isReceivingDrag = false
         preparedDrop = nil
     }
@@ -98,6 +100,7 @@ final class DragWheelController {
     /// Capture AppKit's accepted target before mouse-up/modifier changes can clear hover.
     func prepareDrop(at point: CGPoint, pasteboard: NSPasteboard,
                      shiftIsDown: Bool = NSEvent.modifierFlags.contains(.shift)) -> Bool {
+        traceDrag("prepare receiving=\(isReceivingDrag) visible=\(model.isVisible) shift=\(shiftIsDown) point=\(point)")
         preparedDrop = nil
         guard isReceivingDrag, model.isVisible, shiftIsDown else { return false }
         updateHover(point)
@@ -107,6 +110,7 @@ final class DragWheelController {
     }
 
     func accept(_ pasteboard: NSPasteboard) -> Bool {
+        traceDrag("accept prepared=\(preparedDrop != nil) count=\(pasteboard.changeCount)")
         guard let preparedDrop, preparedDrop.changeCount == pasteboard.changeCount else { return false }
         // Consume once: subsequent callbacks must never dispatch the action twice.
         self.preparedDrop = nil
@@ -125,6 +129,7 @@ final class DragWheelController {
         ) as? [URL], !urls.isEmpty else { return false }
         let types = Dictionary(draggedFiles.map { ($0.url, $0.contentType) }, uniquingKeysWith: { first, _ in first })
         let files = urls.map { DraggedFile(url: $0, contentType: types[$0] ?? .data) }
+        traceDrag("dispatch files=\(files.count)")
         selectionHandler(action, files)
         isSuppressedUntilNextDrag = true
         dismiss()
@@ -208,6 +213,7 @@ final class DragWheelController {
 
     private func finishCurrentDrag() {
         guard dragIsActive || model.isVisible else { return }
+        traceDrag("finish hover=\(model.hoveredID?.uuidString ?? "none") receiving=\(isReceivingDrag)")
         dragIsActive = false
         fileTypesAreReady = false
         isSuppressedUntilNextDrag = false
@@ -253,7 +259,21 @@ final class DragWheelController {
         self.panel = panel
     }
 
+    private func traceDrag(_ message: String) {
+        #if DEBUG
+        guard TalosPreferences.uiTestRunID != nil,
+              let path = ProcessInfo.processInfo.environment["TALOS_UI_TEST_DRAG_LOG"],
+              let handle = FileHandle(forWritingAtPath: path) else { return }
+        defer { try? handle.close() }
+        do {
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data("\(Date()) \(message)\n".utf8))
+        } catch { }
+        #endif
+    }
+
     private func show() {
+        traceDrag("show prepared=\(preparedActions.count)")
         guard !preparedActions.isEmpty else { return }
         closeTask?.cancel()
         model.reset(actions: preparedActions)
