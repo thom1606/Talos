@@ -152,6 +152,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             closeSettings()
             return .terminateCancel
         }
+        if !isInstallingUpdate, extensionWindowController.hasOpenWindows {
+            extensionWindowController.closeAll()
+            return .terminateCancel
+        }
 
         isTerminating = true
         repositoriesModel.updateMonitor.stop()
