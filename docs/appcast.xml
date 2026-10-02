@@ -3,13 +3,13 @@
     <channel>
         <title>Talos</title>
         <item>
-            <title>1.1.2</title>
-            <pubDate>Fri, 02 Oct 2026 08:39:40 +0000</pubDate>
-            <sparkle:fullReleaseNotesLink>https://github.com/thom1606/Talos/releases/tag/v1.1.2</sparkle:fullReleaseNotesLink>
-            <sparkle:version>61</sparkle:version>
-            <sparkle:shortVersionString>1.1.2</sparkle:shortVersionString>
+            <title>1.1.3</title>
+            <pubDate>Fri, 02 Oct 2026 18:51:15 +0000</pubDate>
+            <sparkle:fullReleaseNotesLink>https://github.com/thom1606/Talos/releases/tag/v1.1.3</sparkle:fullReleaseNotesLink>
+            <sparkle:version>62</sparkle:version>
+            <sparkle:shortVersionString>1.1.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/thom1606/Talos/releases/download/v1.1.2/Talos.zip" length="75836946" type="application/octet-stream" sparkle:edSignature="bMG0Sy/eL5HtNqRBfkJYlZU6qJydtT9bJlxBfix7YnOmRlod2+b575L1DlE1nFinJUw31bI5vrh+U9DFmTXgAg=="/>
+            <enclosure url="https://github.com/thom1606/Talos/releases/download/v1.1.3/Talos.zip" length="75837857" type="application/octet-stream" sparkle:edSignature="zKN4v2n4mThCSqgEFhLa94cHGY7gOtyccA7IghnR6m3i+5fMQ6NJ76rCqRUjg11Y9F8oJ0kmfC7F55L1U9BzAA=="/>
         </item>
     </channel>
 </rss>
