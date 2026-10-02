@@ -22,6 +22,7 @@ final class DragWheelController {
     private var isSuppressedUntilNextDrag = false
     private var isReceivingDrag = false
     private var preparedDrop: (action: WheelAction, changeCount: Int)?
+    private var mouseReleasedAt: Date?
 
     init(
         actionsProvider: @escaping ([DraggedFile]) -> [WheelAction],
@@ -137,7 +138,8 @@ final class DragWheelController {
     }
 
     func tick(pasteboard: NSPasteboard = NSPasteboard(name: .drag),
-              primaryMouseButtonIsDown: Bool = NSEvent.pressedMouseButtons & 1 != 0) {
+              primaryMouseButtonIsDown: Bool = NSEvent.pressedMouseButtons & 1 != 0,
+              now: Date = .now) {
         if pasteboard.changeCount != pasteboardChangeCount {
             pasteboardChangeCount = pasteboard.changeCount
             if primaryMouseButtonIsDown {
@@ -149,9 +151,17 @@ final class DragWheelController {
             // AppKit owns completion while the pointer is over our destination.
             // Mouse-up can be observed before prepare/performDragOperation run.
             guard !isReceivingDrag else { return }
+            // Even draggingEntered can arrive after the global mouse-up state changes.
+            // Keep the destination alive briefly so AppKit can deliver that final drop.
+            // A cancelled/outside drop still closes, without dispatching any action.
+            if model.isVisible {
+                if mouseReleasedAt == nil { mouseReleasedAt = now }
+                if let mouseReleasedAt, now.timeIntervalSince(mouseReleasedAt) < 0.25 { return }
+            }
             finishCurrentDrag()
             return
         }
+        mouseReleasedAt = nil
 
         let shouldShow = dragIsActive
             && fileTypesAreReady
@@ -181,6 +191,7 @@ final class DragWheelController {
     }
 
     private func beginDrag(using pasteboard: NSPasteboard) {
+        mouseReleasedAt = nil
         endDestinationDrag()
         dragIsActive = pasteboard.canReadObject(
             forClasses: [NSURL.self],
@@ -215,6 +226,7 @@ final class DragWheelController {
         guard dragIsActive || model.isVisible else { return }
         traceDrag("finish hover=\(model.hoveredID?.uuidString ?? "none") receiving=\(isReceivingDrag)")
         dragIsActive = false
+        mouseReleasedAt = nil
         fileTypesAreReady = false
         isSuppressedUntilNextDrag = false
         inspectionTask?.cancel()
@@ -236,7 +248,9 @@ final class DragWheelController {
             defer: false
         )
         panel.isOpaque = false
-        panel.backgroundColor = .black.withAlphaComponent(0.001)
+        // Keep the whole destination nontransparent to WindowServer hit testing,
+        // including the center/gaps while the SwiftUI glass is being rendered.
+        panel.backgroundColor = .black.withAlphaComponent(0.01)
         panel.hasShadow = false
         panel.level = .popUpMenu
         panel.hidesOnDeactivate = false
