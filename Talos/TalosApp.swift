@@ -20,7 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private lazy var toastController = ToastController()
     private lazy var dialogController = DialogController()
-    private lazy var extensionWindowController = ExtensionWindowController()
+    private lazy var extensionWindowController = ExtensionWindowController { [weak self] in
+        self?.updateActivationPolicy()
+    }
     private let quickLookController = QuickLookPreviewController()
     fileprivate let notificationService = NotificationService()
     fileprivate lazy var repositoriesModel = RepositoriesModel(notifications: notificationService) { [weak self] in
@@ -102,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ sender: NSApplication,
         hasVisibleWindows flag: Bool
     ) -> Bool {
-        showSettings()
+        if !extensionWindowController.bringWindowsToFront() { showSettings() }
         return false
     }
 
@@ -185,7 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 onboardingWindow = nil
-                if settingsWindow?.isVisible != true && !isTerminating { NSApp.setActivationPolicy(.accessory) }
+                updateActivationPolicy()
             }
         }
     }
@@ -216,7 +218,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func settingsDidClose() {
         guard !isTerminating else { return }
         settingsWindow = nil
-        if onboardingWindow?.isVisible != true { NSApp.setActivationPolicy(.accessory) }
+        updateActivationPolicy()
+    }
+
+    private func updateActivationPolicy() {
+        guard !isTerminating else { return }
+        let hasWindows = extensionWindowController.hasOpenWindows
+            || settingsWindow?.isVisible == true || onboardingWindow?.isVisible == true
+        NSApp.setActivationPolicy(hasWindows ? .regular : .accessory)
     }
 
     private func reloadExtensions() {
