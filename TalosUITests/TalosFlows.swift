@@ -7,11 +7,20 @@ import AVFoundation
 final class TalosFlows: XCTestCase {
     private var app: XCUIApplication!
     private var projectFixture: URL?
+    private var mediaFixtureRoot: URL?
 
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchEnvironment["TALOS_UI_TEST_RUN"] = UUID().uuidString
+        // Gesture coordinates belong to this fixture, independent of the shipping defaults.
+        let actions = ["talos-actions.crop", "talos-actions.archive", "talos-actions.organize",
+                       "talos-actions.compress", "talos-actions.convert", "talos.system.settings"]
+        let wheel = try JSONSerialization.data(withJSONObject: [
+            "schemaVersion": 1,
+            "items": actions.map { ["id": UUID().uuidString, "actionID": $0] }
+        ])
+        app.launchEnvironment["TALOS_UI_TEST_WHEEL"] = wheel.base64EncodedString()
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         app.activate()
@@ -28,6 +37,7 @@ final class TalosFlows: XCTestCase {
         }
         app.terminate()
         if let projectFixture { try FileManager.default.removeItem(at: projectFixture) }
+        if let mediaFixtureRoot { try FileManager.default.removeItem(at: mediaFixtureRoot) }
         if let id = app.launchEnvironment["TALOS_UI_TEST_RUN"] {
             UserDefaults().removePersistentDomain(forName: "com.thom1606.Talos.UITests.\(id)")
             let storage = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -406,8 +416,14 @@ final class TalosFlows: XCTestCase {
     }
 
     private func mediaFixture(_ name: String) throws -> URL {
-        let directory = Bundle.main.bundleURL.deletingLastPathComponent()
+        let source = Bundle.main.bundleURL.deletingLastPathComponent()
             .appendingPathComponent("TalosUITestFixtures/\(name)", isDirectory: true)
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TalosMediaTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        mediaFixtureRoot = root
+        let directory = root.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.copyItem(at: source, to: directory)
         XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("sample.png").path))
         return directory
     }

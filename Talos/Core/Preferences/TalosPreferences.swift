@@ -29,6 +29,13 @@ enum TalosPreferences {
         #if DEBUG
         if let id = uiTestRunID {
             defaults = UserDefaults(suiteName: "com.thom1606.Talos.UITests.\(id)")!
+            // Seed once so relaunch tests retain their changes within this run's private suite.
+            if defaults.data(forKey: TalosPreferenceKey.wheelConfiguration) == nil,
+               let encoded = ProcessInfo.processInfo.environment["TALOS_UI_TEST_WHEEL"],
+               let data = Data(base64Encoded: encoded) {
+                defaults.set(data, forKey: TalosPreferenceKey.wheelConfiguration)
+            }
+            defaults.set(false, forKey: TalosPreferenceKey.automaticUpdates)
         } else {
             defaults = .standard
         }
