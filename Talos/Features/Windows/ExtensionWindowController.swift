@@ -17,7 +17,30 @@ final class ExtensionWindowController: NSObject, NSWindowDelegate {
     private var windows: [ObjectIdentifier: Entry] = [:]
     private var preparedPage: PreparedWindowPage?
     private var isClosingAll = false
+    private let onWindowsChanged: () -> Void
     private let logger = Logger(subsystem: "com.thom1606.Talos", category: "ExtensionWindows")
+
+    init(onWindowsChanged: @escaping () -> Void) {
+        self.onWindowsChanged = onWindowsChanged
+        super.init()
+    }
+
+    var hasOpenWindows: Bool { !windows.isEmpty }
+
+    /// A Dock click restores the existing windows instead of opening Settings.
+    @discardableResult
+    func bringWindowsToFront() -> Bool {
+        guard hasOpenWindows else { return false }
+        let frontWindow = NSApp.orderedWindows.first { windows[ObjectIdentifier($0)] != nil }
+            ?? windows.values.first?.window
+        NSApp.activate(ignoringOtherApps: true)
+        for entry in windows.values {
+            if entry.window.isMiniaturized { entry.window.deminiaturize(nil) }
+            entry.window.orderFront(nil)
+        }
+        frontWindow?.makeKeyAndOrderFront(nil)
+        return true
+    }
 
     /// Start WebKit with an empty, isolated document before the first user action.
     /// No extension JavaScript or dropped files are loaded during preparation.
@@ -96,6 +119,7 @@ final class ExtensionWindowController: NSObject, NSWindowDelegate {
             close: { [weak window] in window?.performClose(nil) }
         ))
         windows[ObjectIdentifier(window)] = Entry(window: window, webPage: webPage, scripts: scripts, bridge: windowBridge, loadTask: loadTask)
+        onWindowsChanged()
         window.center()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
@@ -127,6 +151,7 @@ final class ExtensionWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
               let entry = windows.removeValue(forKey: ObjectIdentifier(window)) else { return }
+        onWindowsChanged()
         entry.bridge?.close()
         entry.loadTask?.cancel()
         entry.webPage?.stopLoading()
