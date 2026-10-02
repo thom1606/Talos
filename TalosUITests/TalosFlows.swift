@@ -8,6 +8,7 @@ final class TalosFlows: XCTestCase {
     private var app: XCUIApplication!
     private var projectFixture: URL?
     private var mediaFixtureRoot: URL?
+    private var dragLog: URL?
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -21,6 +22,10 @@ final class TalosFlows: XCTestCase {
             "items": actions.map { ["id": UUID().uuidString, "actionID": $0] }
         ])
         app.launchEnvironment["TALOS_UI_TEST_WHEEL"] = wheel.base64EncodedString()
+        let log = FileManager.default.temporaryDirectory.appendingPathComponent("TalosDrag-\(UUID().uuidString).log")
+        try Data().write(to: log)
+        dragLog = log
+        app.launchEnvironment["TALOS_UI_TEST_DRAG_LOG"] = log.path
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         app.activate()
@@ -34,8 +39,15 @@ final class TalosFlows: XCTestCase {
             let hierarchy = XCTAttachment(string: app.debugDescription)
             hierarchy.lifetime = .keepAlways
             add(hierarchy)
+            if let dragLog, let contents = try? String(contentsOf: dragLog, encoding: .utf8) {
+                let trace = XCTAttachment(string: contents)
+                trace.name = "Native drag callbacks"
+                trace.lifetime = .keepAlways
+                add(trace)
+            }
         }
         app.terminate()
+        if let dragLog { try FileManager.default.removeItem(at: dragLog) }
         if let projectFixture { try FileManager.default.removeItem(at: projectFixture) }
         if let mediaFixtureRoot { try FileManager.default.removeItem(at: mediaFixtureRoot) }
         if let id = app.launchEnvironment["TALOS_UI_TEST_RUN"] {
