@@ -301,6 +301,21 @@ final class TalosFlows: XCTestCase {
         XCTAssertFalse(app.buttons["Discard this"].exists)
     }
 
+    func testQuittingExtensionWindowKeepsTalosRunning() throws {
+        let directory = try mediaFixture("crop")
+        finishOnboarding(openSettings: false)
+        let window = app.windows["Crop"]
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -75)) {
+            XCTAssertTrue(window.waitForExistence(timeout: 15))
+        }
+        app.activate()
+        window.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(window.waitForNonExistence(timeout: 10))
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5), "Closing extension windows must keep the Talos agent running")
+        showSettingsWindow()
+        XCTAssertTrue(app.windows["settings"].exists)
+    }
+
     func testBuiltInCropExportsSelectedDimensions() throws {
         let directory = try mediaFixture("crop")
         finishOnboarding(openSettings: false)
