@@ -7,7 +7,6 @@ import AVFoundation
 final class TalosFlows: XCTestCase {
     private var app: XCUIApplication!
     private var projectFixture: URL?
-    private var mediaFixtureRoot: URL?
     private var dragLog: URL?
 
     override func setUpWithError() throws {
@@ -49,7 +48,6 @@ final class TalosFlows: XCTestCase {
         app.terminate()
         if let dragLog { try FileManager.default.removeItem(at: dragLog) }
         if let projectFixture { try FileManager.default.removeItem(at: projectFixture) }
-        if let mediaFixtureRoot { try FileManager.default.removeItem(at: mediaFixtureRoot) }
         if let id = app.launchEnvironment["TALOS_UI_TEST_RUN"] {
             UserDefaults().removePersistentDomain(forName: "com.thom1606.Talos.UITests.\(id)")
             let storage = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -449,14 +447,10 @@ final class TalosFlows: XCTestCase {
     }
 
     private func mediaFixture(_ name: String) throws -> URL {
-        let source = Bundle.main.bundleURL.deletingLastPathComponent()
+        // The build phase prepares a clean fixture outside the sandboxed runner's
+        // private container, so the Talos Node process can save beside the inputs.
+        let directory = Bundle.main.bundleURL.deletingLastPathComponent()
             .appendingPathComponent("TalosUITestFixtures/\(name)", isDirectory: true)
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("TalosMediaTests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        mediaFixtureRoot = root
-        let directory = root.appendingPathComponent(name, isDirectory: true)
-        try FileManager.default.copyItem(at: source, to: directory)
         XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("sample.png").path))
         return directory
     }
