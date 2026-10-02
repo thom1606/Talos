@@ -7,10 +7,11 @@
 
 import AppKit
 import QuickLookUI
+import Sparkle
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     static weak var current: AppDelegate?
 
     override init() {
@@ -65,8 +66,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindow: NSWindow?
     private var onboardingCloseObserver: NSObjectProtocol?
     private var settingsWindowCloseObserver: NSObjectProtocol?
-    fileprivate let advancedSettingsModel = AdvancedSettingsModel()
+    fileprivate lazy var advancedSettingsModel = AdvancedSettingsModel(
+        defaults: TalosPreferences.defaults, updaterDelegate: self
+    )
     private var isTerminating = false
+    private var isInstallingUpdate = false
 
     func shortcutTiles() async -> [WheelActionLibrary.ShortcutTile] {
         if extensionLoadTask == nil { reloadExtensions() }
@@ -98,6 +102,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWorkspace.didWakeNotification, object: nil)
         advancedSettingsModel.startUpdater()
         reloadExtensions()
+        showInstalledUpdateIfNeeded()
+    }
+
+    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        isInstallingUpdate = true
+        TalosPreferences.defaults.set(item.versionString, forKey: TalosPreferenceKey.pendingAppUpdateBuild)
+        // Persist before Sparkle terminates this process and replaces the application.
+        TalosPreferences.defaults.synchronize()
+    }
+
+    func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
+        isInstallingUpdate = false
+        TalosPreferences.defaults.removeObject(forKey: TalosPreferenceKey.pendingAppUpdateBuild)
+    }
+
+    private func showInstalledUpdateIfNeeded() {
+        let defaults = TalosPreferences.defaults
+        guard let pendingBuild = defaults.string(forKey: TalosPreferenceKey.pendingAppUpdateBuild),
+              pendingBuild == Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String else { return }
+        defaults.removeObject(forKey: TalosPreferenceKey.pendingAppUpdateBuild)
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? pendingBuild
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            showSettings()
+            toastController.show(.init(message: String(localized: "Talos has been updated to \(version)."), kind: .success))
+        }
     }
 
     func applicationShouldHandleReopen(
@@ -113,16 +143,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if onboardingWindow?.isVisible == true {
+        guard !isTerminating else { return .terminateNow }
+        if !isInstallingUpdate, onboardingWindow?.isVisible == true {
             closeOnboarding()
             return .terminateCancel
         }
-        if settingsWindow?.isVisible == true {
+        if !isInstallingUpdate, settingsWindow?.isVisible == true {
             closeSettings()
             return .terminateCancel
         }
 
-        guard !isTerminating else { return .terminateNow }
         isTerminating = true
         repositoriesModel.updateMonitor.stop()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
@@ -130,6 +160,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         extensionLoadTask?.cancel()
         wheelController.stop()
         toastController.stop()
+        closeSettings()
+        closeOnboarding()
         extensionWindowController.closeAll()
         quickLookController.close()
 

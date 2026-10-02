@@ -126,3 +126,5 @@
 "Repository update available" = "Repository-Update verfügbar";
 "%@ has a new release (%@). Open Talos to update." = "Für %@ ist eine neue Version (%@) verfügbar. Öffne Talos zum Aktualisieren.";
 "%@ has a new release. Open Talos to update." = "Für %@ ist eine neue Version verfügbar. Öffne Talos zum Aktualisieren.";
+
+"Talos has been updated to %@." = "Talos wurde auf %@ aktualisiert.";

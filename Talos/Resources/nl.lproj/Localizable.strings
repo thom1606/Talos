@@ -121,3 +121,5 @@
 
 "Saved in Keychain. Leave empty to keep it." = "Opgeslagen in Sleutelhanger. Laat leeg om te behouden.";
 "Couldn't save action" = "Actie opslaan mislukt";
+
+"Talos has been updated to %@." = "Talos is bijgewerkt naar %@.";

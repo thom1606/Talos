@@ -122,3 +122,5 @@
 
 "Saved in Keychain. Leave empty to keep it." = "Saved in Keychain. Leave empty to keep it.";
 "Couldn't save action" = "Couldn't save action";
+
+"Talos has been updated to %@." = "Talos has been updated to %@.";
