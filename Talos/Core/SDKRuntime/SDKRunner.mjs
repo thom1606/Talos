@@ -193,7 +193,6 @@ async function invokeWindow(command) {
     const result = await activationContext.run(context,
       () => window.handler(method, JSON.parse(payloadJSON), context, controller.signal));
     const resultJSON = JSON.stringify(result ?? null);
-    if (Buffer.byteLength(resultJSON) > 32768) throw new Error('Window response exceeds 32 KB');
     if (!controller.signal.aborted) windowReply(requestID, { resultJSON });
   } catch (error) {
     if (!controller.signal.aborted) windowReply(requestID, { error: String(error?.message ?? error).slice(0, 4096) });

@@ -6,7 +6,7 @@ nonisolated struct DraggedFile: Sendable {
     let contentType: UTType
 
     enum Category: CaseIterable {
-        case image, pdf, video, audio, other
+        case image, pdf, video, audio, archive, other
 
         var title: String {
             switch self {
@@ -14,6 +14,7 @@ nonisolated struct DraggedFile: Sendable {
             case .pdf: String(localized: "PDFs")
             case .video: String(localized: "Videos")
             case .audio: String(localized: "Audio")
+            case .archive: String(localized: "Archives")
             case .other: String(localized: "Files")
             }
         }
@@ -24,6 +25,7 @@ nonisolated struct DraggedFile: Sendable {
             case .pdf: "doc.richtext"
             case .video: "film"
             case .audio: "waveform"
+            case .archive: "archivebox"
             case .other: "doc"
             }
         }
@@ -35,6 +37,7 @@ nonisolated struct DraggedFile: Sendable {
         if contentType.conforms(to: .image) { return .image }
         if contentType.conforms(to: .movie) { return .video }
         if contentType.conforms(to: .audio) { return .audio }
+        if contentType.conforms(to: .archive) { return .archive }
         return .other
     }
 }

@@ -6,7 +6,10 @@
   "scripts": {
     "build": "talos build",
     "typecheck": "tsc --noEmit",
-    "package": "bash scripts/build-tools.sh && bash scripts/build-pdf-tool.sh && bash scripts/build-image-tool.sh && talos build && node scripts/package.mjs"
+    "package": "bash scripts/build-tools.sh && bash scripts/build-pdf-tool.sh && bash scripts/build-image-tool.sh && bash scripts/build-archive-tool.sh && talos build && node scripts/package.mjs",
+    "test:audio": "node --test tests/*audio*.test.mjs",
+    "test:images": "node --test tests/convert-images.test.mjs",
+    "test:archives": "node --test tests/convert-archives.test.mjs"
   },
   "devDependencies": {
     "@thom1606/talos-sdk": "3.5.0",
@@ -56,7 +59,7 @@
       "name": "redact",
       "displayName": "Redact",
       "icon": "eye.slash",
-      "description": "Hide parts of an image with black blocks.",
+      "description": "Hide parts of an image or replace parts of audio with a bleep.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
@@ -65,7 +68,8 @@
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
-        "com.microsoft.bmp"
+        "com.microsoft.bmp",
+        "public.audio"
       ]
     },
     {
@@ -102,7 +106,7 @@
       "name": "convert",
       "displayName": "Convert",
       "icon": "arrow.trianglehead.2.clockwise.rotate.90",
-      "description": "Convert a selection of images, PDFs, videos, or audio files.",
+      "description": "Convert selected images, PDFs, videos, audio files, or archives.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
@@ -114,10 +118,17 @@
         "com.microsoft.bmp",
         "public.movie",
         "public.audio",
-        "com.adobe.pdf"
+        "com.adobe.pdf",
+        "public.zip-archive",
+        "public.tar-archive",
+        "org.gnu.gnu-zip-tar-archive",
+        ".tar.gz",
+        ".tar.gzip"
       ],
       "subcommands": [
         "convert-png",
+        "convert-svg",
+        "convert-webp",
         "convert-jpg",
         "convert-docx",
         "convert-tiff",
@@ -126,7 +137,10 @@
         "convert-mov",
         "convert-m4a",
         "convert-wav",
-        "convert-flac"
+        "convert-flac",
+        "convert-zip",
+        "convert-tar",
+        "convert-gzip"
       ]
     },
     {
@@ -142,7 +156,31 @@
         "org.webmproject.webp",
         "com.compuserve.gif",
         "com.microsoft.bmp",
-        "com.adobe.pdf"
+        "com.adobe.pdf",
+        "public.audio"
+      ]
+    },
+    {
+      "name": "convert-svg",
+      "displayName": "SVG",
+      "description": "Export selected audio files as Talos-colored SVG waveforms.",
+      "supportedFileTypes": [
+        "public.audio"
+      ]
+    },
+    {
+      "name": "convert-webp",
+      "displayName": "WebP",
+      "description": "Convert selected images to WebP, preserving transparency.",
+      "supportedFileTypes": [
+        "public.png",
+        "public.jpeg",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp"
       ]
     },
     {
@@ -237,6 +275,42 @@
       "description": "Convert selected files to FLAC.",
       "supportedFileTypes": [
         "public.audio"
+      ]
+    },
+    {
+      "name": "convert-zip",
+      "displayName": "ZIP",
+      "description": "Convert selected archives to ZIP.",
+      "supportedFileTypes": [
+        "public.zip-archive",
+        "public.tar-archive",
+        "org.gnu.gnu-zip-tar-archive",
+        ".tar.gz",
+        ".tar.gzip"
+      ]
+    },
+    {
+      "name": "convert-tar",
+      "displayName": "TAR",
+      "description": "Convert selected archives to TAR.",
+      "supportedFileTypes": [
+        "public.zip-archive",
+        "public.tar-archive",
+        "org.gnu.gnu-zip-tar-archive",
+        ".tar.gz",
+        ".tar.gzip"
+      ]
+    },
+    {
+      "name": "convert-gzip",
+      "displayName": "GZIP",
+      "description": "Convert selected archives to gzip-compressed TAR (.tgz).",
+      "supportedFileTypes": [
+        "public.zip-archive",
+        "public.tar-archive",
+        "org.gnu.gnu-zip-tar-archive",
+        ".tar.gz",
+        ".tar.gzip"
       ]
     }
   ]

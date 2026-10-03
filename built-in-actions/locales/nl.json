@@ -15,7 +15,7 @@
     },
     "convert": {
       "displayName": "Converteren",
-      "description": "Converteer een selectie afbeeldingen, pdf’s, video’s of audiobestanden."
+      "description": "Converteer geselecteerde afbeeldingen, pdf’s, video’s, audiobestanden of archieven."
     },
     "convert-png": {
       "displayName": "PNG",
@@ -63,7 +63,27 @@
     },
     "redact": {
       "displayName": "Zwartmaken",
-      "description": "Verberg delen van een afbeelding met zwarte blokken."
+      "description": "Verberg delen van een afbeelding of vervang delen van audio door een pieptoon."
+    },
+    "convert-svg": {
+      "displayName": "SVG",
+      "description": "Exporteer geselecteerde audiobestanden als SVG-waveforms in de Talos-kleur."
+    },
+    "convert-webp": {
+      "displayName": "WebP",
+      "description": "Converteer geselecteerde afbeeldingen naar WebP met behoud van transparantie."
+    },
+    "convert-zip": {
+      "displayName": "ZIP",
+      "description": "Converteer geselecteerde archieven naar ZIP."
+    },
+    "convert-tar": {
+      "displayName": "TAR",
+      "description": "Converteer geselecteerde archieven naar TAR."
+    },
+    "convert-gzip": {
+      "displayName": "GZIP",
+      "description": "Converteer geselecteerde archieven naar gzip-gecomprimeerde TAR (.tgz)."
     }
   },
   "crop": {
@@ -124,7 +144,14 @@
     "title": "Zwartmaken",
     "help": "Sleep om een zwart blok te tekenen. Selecteer een blok om het te verplaatsen of te vergroten; druk op Backspace om het te verwijderen.",
     "saveCopy": "Opslaan",
-    "noInput": "Sleep een afbeelding naar deze actie om delen zwart te maken.",
-    "block": "Zwart blok {number}"
+    "noInput": "Sleep een afbeelding of audiobestand op deze actie om delen te verbergen.",
+    "block": "Zwart blok {number}",
+    "chooseFile": "Kies bestand…",
+    "audioWaveform": "Waveform. Sleep om te selecteren; verplaats een selectie met de pijltjestoetsen of verwijder met Backspace.",
+    "audioSelection": "Pieptoon {number}, {start} tot {end}",
+    "audioPlay": "Audio met pieptonen afspelen",
+    "audioOpening": "Waveform laden…",
+    "audioCannotOpen": "Dit audiobestand kan niet worden geopend.",
+    "audioSeek": "Audiopositie"
   }
 }

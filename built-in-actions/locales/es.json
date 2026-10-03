@@ -15,7 +15,7 @@
     },
     "convert": {
       "displayName": "Convertir",
-      "description": "Convierte una selección de imágenes, PDF, vídeos o archivos de audio."
+      "description": "Convierte las imágenes, PDF, vídeos, archivos de audio o archivos comprimidos seleccionados."
     },
     "convert-png": {
       "displayName": "PNG",
@@ -63,7 +63,27 @@
     },
     "redact": {
       "displayName": "Ocultar",
-      "description": "Oculta partes de una imagen con bloques negros."
+      "description": "Oculta partes de una imagen o sustituye fragmentos de audio por un pitido."
+    },
+    "convert-svg": {
+      "displayName": "SVG",
+      "description": "Exporta los archivos de audio seleccionados como formas de onda SVG en el color de Talos."
+    },
+    "convert-webp": {
+      "displayName": "WebP",
+      "description": "Convierte las imágenes seleccionadas a WebP conservando la transparencia."
+    },
+    "convert-zip": {
+      "displayName": "ZIP",
+      "description": "Convierte los archivos comprimidos seleccionados a ZIP."
+    },
+    "convert-tar": {
+      "displayName": "TAR",
+      "description": "Convierte los archivos comprimidos seleccionados a TAR."
+    },
+    "convert-gzip": {
+      "displayName": "GZIP",
+      "description": "Convierte los archivos comprimidos seleccionados a TAR comprimido con gzip (.tgz)."
     }
   },
   "crop": {
@@ -124,7 +144,14 @@
     "title": "Ocultar",
     "help": "Arrastra para dibujar un bloque negro. Selecciónalo para moverlo o cambiar su tamaño; pulsa Retroceso para eliminarlo.",
     "saveCopy": "Guardar",
-    "noInput": "Suelta una imagen en esta acción para ocultar partes.",
-    "block": "Área oculta {number}"
+    "noInput": "Arrastra una imagen o un archivo de audio a esta acción para ocultar partes.",
+    "block": "Área oculta {number}",
+    "chooseFile": "Elegir archivo…",
+    "audioWaveform": "Forma de onda. Arrastra para seleccionar, usa las flechas para mover o Retroceso para eliminar.",
+    "audioSelection": "Pitido {number}, de {start} a {end}",
+    "audioPlay": "Reproducir audio con pitidos",
+    "audioOpening": "Cargando la forma de onda…",
+    "audioCannotOpen": "No se puede abrir este archivo de audio.",
+    "audioSeek": "Posición de audio"
   }
 }

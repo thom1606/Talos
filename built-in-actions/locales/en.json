@@ -15,7 +15,7 @@
     },
     "convert": {
       "displayName": "Convert",
-      "description": "Convert a selection of images, PDFs, videos, or audio files."
+      "description": "Convert selected images, PDFs, videos, audio files, or archives."
     },
     "convert-png": {
       "displayName": "PNG",
@@ -63,7 +63,27 @@
     },
     "redact": {
       "displayName": "Redact",
-      "description": "Hide parts of an image with black blocks."
+      "description": "Hide parts of an image or replace parts of audio with a bleep."
+    },
+    "convert-svg": {
+      "displayName": "SVG",
+      "description": "Export selected audio files as Talos-colored SVG waveforms."
+    },
+    "convert-webp": {
+      "displayName": "WebP",
+      "description": "Convert selected images to WebP, preserving transparency."
+    },
+    "convert-zip": {
+      "displayName": "ZIP",
+      "description": "Convert selected archives to ZIP."
+    },
+    "convert-tar": {
+      "displayName": "TAR",
+      "description": "Convert selected archives to TAR."
+    },
+    "convert-gzip": {
+      "displayName": "GZIP",
+      "description": "Convert selected archives to gzip-compressed TAR (.tgz)."
     }
   },
   "crop": {
@@ -124,7 +144,14 @@
     "title": "Redact",
     "help": "Drag to draw a black block. Select a block to move or resize it; press Backspace to delete it.",
     "saveCopy": "Save",
-    "noInput": "Drop an image onto this action to redact it.",
-    "block": "Redaction {number}"
+    "noInput": "Drop an image or audio file onto this action to redact it.",
+    "block": "Redaction {number}",
+    "chooseFile": "Choose file…",
+    "audioWaveform": "Audio waveform. Drag to select; use arrow keys to move a selection, or Backspace to delete.",
+    "audioSelection": "Bleep {number}, {start} to {end}",
+    "audioPlay": "Play bleeped audio",
+    "audioOpening": "Reading waveform…",
+    "audioCannotOpen": "Cannot open this audio file.",
+    "audioSeek": "Audio position"
   }
 }

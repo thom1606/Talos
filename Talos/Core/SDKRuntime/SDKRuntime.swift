@@ -442,8 +442,8 @@ actor SDKRuntime {
         pendingWindowRequests[reply.requestID] = nil
         pending.timeout.cancel()
         if let error = reply.error { pending.continuation.resume(throwing: WindowFileError.invalid(error)) }
-        else if let json = reply.resultJSON, json.utf8.count <= 32_768 { pending.continuation.resume(returning: json) }
-        else { pending.continuation.resume(throwing: SDKRuntimeError.contextTooLarge) }
+        else if let json = reply.resultJSON { pending.continuation.resume(returning: json) }
+        else { pending.continuation.resume(throwing: WindowFileError.invalid("Invalid window response")) }
     }
 
     private func cancelWindowRequest(_ id: String, message: String) {

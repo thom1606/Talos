@@ -27,8 +27,10 @@ final class TalosFlows: XCTestCase {
         // Onboarding opens real Finder, using the test files instead of the user's Downloads.
         app.launchEnvironment["TALOS_UI_TEST_FINDER_DIRECTORY"] = try mediaFixture("crop").path
         // Gesture coordinates belong to this fixture, independent of the shipping defaults.
-        let actions = ["talos-actions.crop", "talos-actions.archive", "talos-actions.organize",
-                       "talos-actions.compress", "talos-actions.convert", "talos.system.settings"]
+        let firstAction = name.contains("Redact") ? "talos-actions.redact" : "talos-actions.crop"
+        let actions = name.contains("AudioWaveformExports") || name.contains("WebPExports") || name.contains("ArchiveExports") ? ["talos-actions.convert"] :
+            [firstAction, "talos-actions.archive", "talos-actions.organize",
+             "talos-actions.compress", "talos-actions.convert", "talos.system.settings"]
         let wheel = try JSONSerialization.data(withJSONObject: [
             "schemaVersion": 1,
             "items": actions.map { ["id": UUID().uuidString, "actionID": $0] }
@@ -451,6 +453,205 @@ final class TalosFlows: XCTestCase {
         let result = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: output)))
         XCTAssertEqual(result.pixelsWide, 320)
         XCTAssertEqual(result.pixelsHigh, 240)
+    }
+
+    func testBuiltInConvertAudioWaveformExports() throws {
+        let directory = try mediaFixture("convertAudio")
+        let input = directory.appendingPathComponent("sample.wav")
+        let original = try Data(contentsOf: input)
+        finishOnboarding(openSettings: false)
+        // One root Convert action lets a continuous Finder drag dwell on either submenu item.
+        for (format, offset) in [("png", CGVector(dx: -100, dy: 25)),
+                                 ("svg", CGVector(dx: -85, dy: -53))] {
+            let output = directory.appendingPathComponent("sample-converted.\(format)")
+            dropOnWheel(file: input, offset: offset) { waitForFile(output) }
+            XCTAssertFalse(app.windows["Convert"].exists)
+            if format == "png" {
+                let image = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: output)))
+                XCTAssertEqual(image.pixelsWide, 1600)
+                XCTAssertEqual(image.pixelsHigh, 400)
+                XCTAssertTrue(image.hasAlpha)
+                let background = try XCTUnwrap(image.colorAt(x: 0, y: 0)?.usingColorSpace(.sRGB))
+                XCTAssertEqual(background.alphaComponent, 0)
+                // A bar near the midpoint contains the fixture's constant tone, in the Talos accent.
+                XCTAssertEqual(image.colorSpace.cgColorSpace?.name as String?, CGColorSpace.sRGB as String)
+                // colorAt returns a calibrated NSColor despite the bitmap's sRGB profile.
+                // Read decoded components with their declared profile instead of converting twice.
+                var color = [Int](repeating: 0, count: 4)
+                image.getPixel(&color, atX: 800, y: 200)
+                XCTAssertEqual(color, [202, 73, 28, 255])
+            } else {
+                let svg = try String(contentsOf: output, encoding: .utf8)
+                XCTAssertTrue(svg.contains("viewBox=\"0 0 1600 400\""))
+                XCTAssertTrue(svg.contains("fill=\"#CA491C\""))
+                XCTAssertEqual(svg.components(separatedBy: "<rect ").count - 1, 512)
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: input), original)
+    }
+
+    func testBuiltInConvertWebPExports() throws {
+        let directory = try mediaFixture("convertWebP")
+        let input = directory.appendingPathComponent("sample.png")
+        let original = try Data(contentsOf: input)
+        let output = directory.appendingPathComponent("sample-converted.webp")
+        finishOnboarding(openSettings: false)
+        // WebP is the second image format in the actual Convert submenu.
+        dropOnWheel(file: input, offset: CGVector(dx: -85, dy: -53)) { waitForFile(output) }
+        XCTAssertFalse(app.windows["Convert"].exists)
+        let bytes = try Data(contentsOf: output)
+        XCTAssertEqual(String(data: bytes.prefix(4), encoding: .ascii), "RIFF")
+        XCTAssertEqual(String(data: bytes.subdata(in: 8..<12), encoding: .ascii), "WEBP")
+        let image = try XCTUnwrap(NSBitmapImageRep(data: bytes))
+        XCTAssertEqual(image.pixelsWide, 320)
+        XCTAssertEqual(image.pixelsHigh, 240)
+        XCTAssertEqual(try Data(contentsOf: input), original)
+    }
+
+    func testBuiltInConvertArchiveExports() throws {
+        let directory = try mediaFixture("convertArchives")
+        let input = directory.appendingPathComponent("sample.zip")
+        let original = try Data(contentsOf: input)
+        finishOnboarding(openSettings: false)
+        // Three formats share the remaining 290 degrees above the fixed Back segment.
+        for (format, offset) in [("zip", CGVector(dx: -102, dy: 12)),
+                                 ("tar", CGVector(dx: 0, dy: -105)),
+                                 ("tgz", CGVector(dx: 102, dy: 12))] {
+            let output = directory.appendingPathComponent("sample-converted.\(format)")
+            dropOnWheel(file: input, offset: offset) { waitForFile(output) }
+            XCTAssertFalse(app.windows["Convert"].exists)
+            for (entry, expected) in [("picture.png", try Data(contentsOf: directory.appendingPathComponent("sample.png"))),
+                                      ("nested/notes.txt", Data("A file inside the archive".utf8))] {
+                let process = Process(), pipe = Pipe()
+                process.executableURL = URL(filePath: "/usr/bin/tar")
+                process.arguments = ["-xOf", output.path, entry]
+                process.standardOutput = pipe
+                try process.run()
+                let contents = pipe.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+                XCTAssertEqual(process.terminationStatus, 0)
+                XCTAssertEqual(contents, expected, "\(format) must preserve \(entry)")
+            }
+            let bytes = try Data(contentsOf: output)
+            if format == "tgz" { XCTAssertEqual(Array(bytes.prefix(2)), [0x1f, 0x8b]) }
+            XCTAssertEqual(try Data(contentsOf: input), original)
+        }
+    }
+
+    func testBuiltInRedactAudioPreviewsAndExportsBleepedSelections() async throws {
+        let directory = try mediaFixture("redactAudio")
+        let input = directory.appendingPathComponent("sample.wav")
+        let original = try Data(contentsOf: input)
+        finishOnboarding(openSettings: false)
+        let window = app.windows["Redact"]
+        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105)) {
+            XCTAssertTrue(window.waitForExistence(timeout: 15), "Audio files must enable the real Redact wheel action")
+        }
+        let surface = window.descendants(matching: .any)["Audio waveform. Drag to select; use arrow keys to move a selection, or Backspace to delete."].firstMatch
+        XCTAssertTrue(surface.waitForExistence(timeout: 15))
+        let save = window.buttons["Save"]
+        let play = window.buttons["Play bleeped audio"]
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in play.isEnabled }, object: nil)
+        await fulfillment(of: [ready], timeout: 15)
+        XCTAssertFalse(save.isEnabled)
+        XCTAssertGreaterThan(play.frame.minY, window.frame.maxY - 65, "Playback controls must stay at the bottom of the window")
+        XCTAssertEqual(window.textFields.count, 0, "Audio redaction must have only a waveform and playback bar")
+        XCTAssertFalse(window.buttons["Add bleep"].exists)
+        surface.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.3))
+            .click(forDuration: 0.1, thenDragTo: surface.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.7)), withVelocity: .slow, thenHoldForDuration: 0.1)
+        XCTAssertTrue(save.isEnabled)
+        window.typeKey(.delete, modifierFlags: [])
+        XCTAssertFalse(save.isEnabled, "Backspace must remove the selected rectangle")
+        surface.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.3))
+            .click(forDuration: 0.1, thenDragTo: surface.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.7)), withVelocity: .slow, thenHoldForDuration: 0.1)
+        XCTAssertTrue(save.isEnabled)
+        let selection = window.checkBoxes.firstMatch
+        let widthBeforeResize = selection.frame.width
+        selection.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+            .click(forDuration: 0.1, thenDragTo: surface.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.5)), withVelocity: .slow, thenHoldForDuration: 0.1)
+        XCTAssertGreaterThan(selection.frame.width, widthBeforeResize * 1.15, "The right handle must resize the actual bleep interval")
+        let screenshot = XCTAttachment(screenshot: window.screenshot())
+        screenshot.name = "Audio waveform and bleep selection"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        play.click()
+        let pause = window.buttons["Pause preview"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 10), "The actual chunked audio preview must start")
+        // Run past several chunk boundaries, then test cancelling a second playback.
+        let finished = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            window.staticTexts["0:05 / 0:05"].exists && play.exists
+        }, object: nil)
+        await fulfillment(of: [finished], timeout: 12)
+        play.click()
+        XCTAssertTrue(pause.waitForExistence(timeout: 5))
+        pause.click()
+        window.buttons["Save"].click()
+        let output = directory.appendingPathComponent("sample-redacted.wav")
+        waitForFile(output)
+        XCTAssertTrue(window.waitForNonExistence(timeout: 10))
+        XCTAssertEqual(try Data(contentsOf: input), original)
+        let asset = AVURLAsset(url: output)
+        let tracks = try await asset.loadTracks(withMediaType: .audio)
+        XCTAssertEqual(tracks.count, 1)
+        let duration = try await asset.load(.duration)
+        XCTAssertEqual(duration.seconds, 5, accuracy: 0.001)
+        // Decode the saved result independently of FFmpeg and verify both source tones are gone.
+        let reader = try AVAssetReader(asset: asset)
+        let decoded = AVAssetReaderTrackOutput(track: try XCTUnwrap(tracks.first), outputSettings: [
+            AVFormatIDKey: kAudioFormatLinearPCM, AVLinearPCMIsFloatKey: true,
+            AVLinearPCMBitDepthKey: 32, AVLinearPCMIsNonInterleaved: false
+        ])
+        reader.add(decoded)
+        XCTAssertTrue(reader.startReading())
+        var frame = 0, checked = 0
+        while let buffer = decoded.copyNextSampleBuffer() {
+            let block = try XCTUnwrap(CMSampleBufferGetDataBuffer(buffer))
+            var bytes = Data(count: CMBlockBufferGetDataLength(block))
+            let byteCount = bytes.count
+            let copied = bytes.withUnsafeMutableBytes { pointer in
+                CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: byteCount, destination: pointer.baseAddress!)
+            }
+            XCTAssertEqual(copied, kCMBlockBufferNoErr)
+            bytes.withUnsafeBytes { pointer in
+                let values = pointer.bindMemory(to: Float.self)
+                for offset in stride(from: 0, to: values.count, by: 2) {
+                    let time = Double(frame) / 48000
+                    if time >= 0.55 && time < 1.65 {
+                        let expected = Float(0.18 * sin(2 * .pi * 1000 * time))
+                        XCTAssertEqual(values[offset], expected, accuracy: 0.00001)
+                        XCTAssertEqual(values[offset + 1], expected, accuracy: 0.00001)
+                        checked += 1
+                    }
+                    frame += 1
+                }
+            }
+        }
+        XCTAssertEqual(reader.status, .completed)
+        XCTAssertEqual(checked, 52800)
+    }
+
+    func testBuiltInRedactImageStillExportsBlackBlocks() throws {
+        let directory = try mediaFixture("redactImage")
+        let input = directory.appendingPathComponent("sample.png")
+        let original = try Data(contentsOf: input)
+        finishOnboarding(openSettings: false)
+        let window = app.windows["Redact"]
+        dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105)) {
+            XCTAssertTrue(window.waitForExistence(timeout: 15))
+        }
+        let surface = window.descendants(matching: .any)["Drag to draw a black block. Select a block to move or resize it; press Backspace to delete it."].firstMatch
+        XCTAssertTrue(surface.waitForExistence(timeout: 15))
+        surface.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.3))
+            .click(forDuration: 0.1, thenDragTo: surface.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7)), withVelocity: .slow, thenHoldForDuration: 0.1)
+        window.buttons["Save"].click()
+        let output = directory.appendingPathComponent("sample-redacted.png")
+        waitForFile(output)
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: output)))
+        let center = try XCTUnwrap(bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2)?.usingColorSpace(.deviceRGB))
+        XCTAssertEqual(center.redComponent, 0, accuracy: 0.001)
+        XCTAssertEqual(center.greenComponent, 0, accuracy: 0.001)
+        XCTAssertEqual(center.blueComponent, 0, accuracy: 0.001)
+        XCTAssertEqual(try Data(contentsOf: input), original)
     }
 
     func testBuiltInCompressionPreservesPixels() throws {

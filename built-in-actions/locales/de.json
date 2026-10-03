@@ -15,7 +15,7 @@
     },
     "convert": {
       "displayName": "Konvertieren",
-      "description": "Ausgewählte Bilder, PDFs, Videos oder Audiodateien konvertieren."
+      "description": "Konvertiere ausgewählte Bilder, PDFs, Videos, Audiodateien oder Archive."
     },
     "convert-png": {
       "displayName": "PNG",
@@ -63,7 +63,27 @@
     },
     "redact": {
       "displayName": "Schwärzen",
-      "description": "Bildbereiche mit schwarzen Blöcken verdecken."
+      "description": "Teile eines Bildes ausblenden oder Audio durch einen Piepton ersetzen."
+    },
+    "convert-svg": {
+      "displayName": "SVG",
+      "description": "Exportiere ausgewählte Audiodateien als SVG-Wellenformen in der Talos-Farbe."
+    },
+    "convert-webp": {
+      "displayName": "WebP",
+      "description": "Konvertiere ausgewählte Bilder in WebP und behalte die Transparenz bei."
+    },
+    "convert-zip": {
+      "displayName": "ZIP",
+      "description": "Konvertiere ausgewählte Archive in ZIP."
+    },
+    "convert-tar": {
+      "displayName": "TAR",
+      "description": "Konvertiere ausgewählte Archive in TAR."
+    },
+    "convert-gzip": {
+      "displayName": "GZIP",
+      "description": "Konvertiere ausgewählte Archive in gzip-komprimierte TAR-Dateien (.tgz)."
     }
   },
   "crop": {
@@ -124,7 +144,14 @@
     "title": "Schwärzen",
     "help": "Ziehen, um einen schwarzen Block zu zeichnen. Einen Block zum Verschieben oder Skalieren auswählen; mit der Rücktaste löschen.",
     "saveCopy": "Speichern",
-    "noInput": "Ein Bild auf diese Aktion ziehen, um Bereiche zu schwärzen.",
-    "block": "Schwärzung {number}"
+    "noInput": "Ziehe ein Bild oder eine Audiodatei auf diese Aktion, um Teile zu verbergen.",
+    "block": "Schwärzung {number}",
+    "chooseFile": "Datei auswählen…",
+    "audioWaveform": "Wellenform. Ziehen zum Auswählen, Pfeiltasten zum Verschieben, Rücktaste zum Löschen.",
+    "audioSelection": "Piepton {number}, {start} bis {end}",
+    "audioPlay": "Audio mit Pieptönen abspielen",
+    "audioOpening": "Wellenform wird geladen…",
+    "audioCannotOpen": "Diese Audiodatei kann nicht geöffnet werden.",
+    "audioSeek": "Audioposition"
   }
 }

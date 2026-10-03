@@ -13,25 +13,41 @@ fetch() {
 }
 fetch ffmpeg-8.1.tar.xz https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a
 fetch libjpeg-turbo-3.1.3.tar.gz https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.3/libjpeg-turbo-3.1.3.tar.gz 075920b826834ac4ddf97661cc73491047855859affd671d52079c6867c1c6c0
+fetch libwebp-1.6.0.tar.gz https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564
 # Retain the exact source archives alongside the binaries for LGPL redistribution.
 test -d vendor/build/ffmpeg-8.1 || tar -xf vendor/sources/ffmpeg-8.1.tar.xz -C vendor/build
 test -d vendor/build/libjpeg-turbo-3.1.3 || tar -xf vendor/sources/libjpeg-turbo-3.1.3.tar.gz -C vendor/build
+test -d vendor/build/libwebp-1.6.0 || tar -xf vendor/sources/libwebp-1.6.0.tar.gz -C vendor/build
 cp vendor/build/ffmpeg-8.1/COPYING.LGPLv2.1 vendor/licenses/FFmpeg-LGPL-2.1.txt
 cp vendor/build/libjpeg-turbo-3.1.3/LICENSE.md vendor/licenses/libjpeg-turbo.txt
 cp vendor/build/libjpeg-turbo-3.1.3/README.ijg vendor/licenses/libjpeg-IJG.txt
+cp vendor/build/libwebp-1.6.0/COPYING vendor/licenses/libwebp.txt
 for arch in ${ARCHS:-$(uname -m)}; do
   mkdir -p "vendor/build/ffmpeg-$arch" "vendor/build/jpeg-$arch" "vendor/bin/$arch"
   if [[ ! -f "vendor/bin/$arch/.configuration" ]] || [[ "$(cat "vendor/bin/$arch/.configuration")" != "$configuration_hash" ]]; then
     rm -f "vendor/bin/$arch/ffmpeg" "vendor/bin/$arch/ffprobe" "vendor/bin/$arch/jpegtran" "vendor/bin/$arch/cjpeg" "vendor/bin/$arch/djpeg"
   fi
   if [[ ! -x "vendor/bin/$arch/ffmpeg" ]]; then
+    command -v pkg-config >/dev/null || { echo 'pkg-config is required to build the WebP encoder.' >&2; exit 1; }
+    webp_prefix="$root/vendor/build/webp-$arch/install"
+    # Statically link the encoder; the shipped tools may depend only on macOS system libraries.
+    cmake -S vendor/build/libwebp-1.6.0 -B "vendor/build/webp-$arch" \
+      -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="$arch" -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+      -DCMAKE_INSTALL_PREFIX="$webp_prefix" -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=OFF \
+      -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF \
+      -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF \
+      -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_LIBWEBPMUX=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF
+    cmake --build "vendor/build/webp-$arch" --target install -j "$jobs"
     (
       cd "vendor/build/ffmpeg-$arch"
+      export PKG_CONFIG_LIBDIR="$webp_prefix/lib/pkgconfig"
+      export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
       ../ffmpeg-8.1/configure --sysroot="$(xcrun --sdk macosx --show-sdk-path)" --arch="$arch" --target-os=darwin --enable-cross-compile \
         --cc="$(xcrun -f clang) -arch $arch" --disable-autodetect --disable-network \
         --disable-gpl --disable-nonfree --disable-doc --disable-debug --disable-x86asm \
         --disable-shared --enable-static --disable-ffplay --enable-videotoolbox --enable-audiotoolbox --enable-zlib \
-        --disable-encoders --enable-encoder=png,mjpeg,tiff,bmp,gif,h264_videotoolbox,hevc_videotoolbox,aac,alac,flac,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le \
+        --enable-libwebp --pkg-config-flags=--static \
+        --disable-encoders --enable-encoder=png,mjpeg,tiff,bmp,gif,libwebp,h264_videotoolbox,hevc_videotoolbox,aac,alac,flac,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le \
         --extra-cflags=-mmacosx-version-min=14.0 --extra-ldflags=-mmacosx-version-min=14.0
       make -j "$jobs"
       cp ffmpeg ffprobe "$root/vendor/bin/$arch/"

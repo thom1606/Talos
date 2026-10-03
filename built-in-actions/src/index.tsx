@@ -1,10 +1,12 @@
 import { defineActions, talos, t, type TalosActivationContext } from '@thom1606/talos-sdk';
 import CropWindow from './windows/crop';
+import RedactWindow from './windows/redact';
 import { archive } from './operations/archive';
 import { compress } from './operations/compress';
 import { convert, homogeneous } from './operations/convert';
 import { cropVideo } from './operations/crop-video';
 import { redactImage } from './operations/redact-image';
+import { audioPreview, audioWaveform, redactAudio } from './operations/redact-audio';
 import { cropImage } from './operations/crop-image';
 import { organize } from './operations/organize';
 
@@ -19,10 +21,15 @@ const actions = defineActions({
     },
   }),
   redact: () => talos.openWindow({
-    title: t('redact.title'), children: <CropWindow mode="redact" />, width: 480, height: 680,
+    title: t('redact.title'), children: <RedactWindow />, width: 480, height: 680,
     onRequest: async (method, payload, context, signal) => {
-      if (method !== 'redactImage' || !payload || typeof payload !== 'object') throw new Error('Unknown redact request');
-      return redactImage(context, payload as Record<string, unknown>, signal);
+      if (!payload || typeof payload !== 'object') throw new Error('Unknown redact request');
+      const data = payload as Record<string, unknown>;
+      if (method === 'redactImage') return redactImage(context, data, signal);
+      if (method === 'audioWaveform') return audioWaveform(context, data, signal);
+      if (method === 'audioPreview') return audioPreview(context, data, signal);
+      if (method === 'redactAudio') return redactAudio(context, data, signal);
+      throw new Error('Unknown redact request');
     },
   }),
   organize: async (context) => {
@@ -37,6 +44,8 @@ const actions = defineActions({
   },
   compress: compressSelection,
   'convert-png': convertTo('png'),
+  'convert-svg': convertTo('svg'),
+  'convert-webp': convertTo('webp'),
   'convert-jpg': convertTo('jpg'),
   'convert-docx': convertTo('docx'),
   'convert-tiff': convertTo('tiff'),
@@ -46,6 +55,9 @@ const actions = defineActions({
   'convert-m4a': convertTo('m4a'),
   'convert-wav': convertTo('wav'),
   'convert-flac': convertTo('flac'),
+  'convert-zip': convertTo('zip'),
+  'convert-tar': convertTo('tar'),
+  'convert-gzip': convertTo('gzip'),
 });
 
 export async function activate(context: TalosActivationContext) {

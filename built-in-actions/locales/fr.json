@@ -15,7 +15,7 @@
     },
     "convert": {
       "displayName": "Convertir",
-      "description": "Convertir une sélection d’images, de PDF, de vidéos ou de fichiers audio."
+      "description": "Convertissez les images, PDF, vidéos, fichiers audio ou archives sélectionnés."
     },
     "convert-png": {
       "displayName": "PNG",
@@ -63,7 +63,27 @@
     },
     "redact": {
       "displayName": "Masquer",
-      "description": "Masquer des parties d’une image avec des blocs noirs."
+      "description": "Masquez des parties d’une image ou remplacez des passages audio par un bip."
+    },
+    "convert-svg": {
+      "displayName": "SVG",
+      "description": "Exportez les fichiers audio sélectionnés en formes d’onde SVG dans la couleur Talos."
+    },
+    "convert-webp": {
+      "displayName": "WebP",
+      "description": "Convertissez les images sélectionnées en WebP en conservant la transparence."
+    },
+    "convert-zip": {
+      "displayName": "ZIP",
+      "description": "Convertissez les archives sélectionnées en ZIP."
+    },
+    "convert-tar": {
+      "displayName": "TAR",
+      "description": "Convertissez les archives sélectionnées en TAR."
+    },
+    "convert-gzip": {
+      "displayName": "GZIP",
+      "description": "Convertissez les archives sélectionnées en TAR compressé avec gzip (.tgz)."
     }
   },
   "crop": {
@@ -124,7 +144,14 @@
     "title": "Masquer",
     "help": "Faites glisser pour dessiner un bloc noir. Sélectionnez-le pour le déplacer ou le redimensionner ; appuyez sur Retour arrière pour le supprimer.",
     "saveCopy": "Enregistrer",
-    "noInput": "Déposez une image sur cette action pour en masquer des parties.",
-    "block": "Zone masquée {number}"
+    "noInput": "Déposez une image ou un fichier audio sur cette action pour en masquer des parties.",
+    "block": "Zone masquée {number}",
+    "chooseFile": "Choisir un fichier…",
+    "audioWaveform": "Forme d’onde. Faites glisser pour sélectionner, utilisez les flèches pour déplacer ou Retour arrière pour supprimer.",
+    "audioSelection": "Bip {number}, de {start} à {end}",
+    "audioPlay": "Lire l’audio avec les bips",
+    "audioOpening": "Chargement de la forme d’onde…",
+    "audioCannotOpen": "Impossible d’ouvrir ce fichier audio.",
+    "audioSeek": "Position audio"
   }
 }
