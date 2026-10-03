@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 
 struct WheelTilePresentation: Identifiable, Equatable {
@@ -17,20 +16,7 @@ struct WheelTilePresentation: Identifiable, Equatable {
     }
 
     var resolvedSymbolName: String {
-        guard let symbolName else { return "questionmark" }
-
-        let trimmedName = symbolName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard
-            !trimmedName.isEmpty,
-            NSImage(
-                systemSymbolName: trimmedName,
-                accessibilityDescription: nil
-            ) != nil
-        else {
-            return "questionmark"
-        }
-
-        return trimmedName
+        WheelActionPresentation.symbol(symbolName?.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }
 

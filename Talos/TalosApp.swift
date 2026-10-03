@@ -51,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     )
     private lazy var wheelController = DragWheelController(
         actionsProvider: { [weak self] files in
-            self?.actionLibrary.actions(for: files) ?? []
+            self?.actionLibrary.actions(for: files) ?? [:]
         },
         hoverHandler: { [weak self] action in
             self?.actionLibrary.prepare(action)

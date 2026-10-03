@@ -124,3 +124,8 @@
 "Couldn't save action" = "Couldn't save action";
 
 "Talos has been updated to %@." = "Talos has been updated to %@.";
+
+"Primary" = "Primary";
+"Secondary" = "Secondary";
+"Drag actions onto this wheel" = "Drag actions onto this wheel";
+"No actions" = "No actions";

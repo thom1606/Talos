@@ -1,15 +1,58 @@
 import Foundation
 
-/// The single wheel layout shared by the Talos host and its settings app.
+nonisolated enum WheelKind: String, CaseIterable, Identifiable, Sendable {
+    case primary
+    case secondary
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .primary: String(localized: "Primary")
+        case .secondary: String(localized: "Secondary")
+        }
+    }
+}
+
+/// Both wheel layouts shared by the Talos runtime and settings.
 nonisolated struct WheelConfiguration: Codable, Sendable, Equatable {
     static let currentSchemaVersion = 1
 
     let schemaVersion: Int
     var items: [WheelItem]
+    var secondaryItems: [WheelItem]
 
-    init(items: [WheelItem] = []) {
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, items, secondaryItems
+    }
+
+    init(items: [WheelItem] = [], secondaryItems: [WheelItem] = []) {
         schemaVersion = Self.currentSchemaVersion
         self.items = items
+        self.secondaryItems = secondaryItems
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
+        items = try values.decode([WheelItem].self, forKey: .items)
+        secondaryItems = try values.decodeIfPresent([WheelItem].self, forKey: .secondaryItems) ?? []
+    }
+
+    var allItems: [WheelItem] { items + secondaryItems }
+
+    func items(for wheel: WheelKind) -> [WheelItem] {
+        switch wheel {
+        case .primary: items
+        case .secondary: secondaryItems
+        }
+    }
+
+    mutating func replaceItems(with items: [WheelItem], in wheel: WheelKind) {
+        switch wheel {
+        case .primary: self.items = items
+        case .secondary: secondaryItems = items
+        }
     }
 }
 

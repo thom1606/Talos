@@ -12,9 +12,10 @@ interface Item {
 }
 
 /** Plan every move before touching the filesystem. Each model call fits the on-device context window. */
-export async function organize(files: TalosFile[], onMoving: () => void): Promise<number> {
+export async function organize(files: TalosFile[], onMoving: () => void, signal: AbortSignal): Promise<number> {
   const groups = new Map<string, Item[]>();
   for (const file of files) {
+    signal.throwIfAborted();
     const info = await lstat(file.path);
     if (basename(file.path) !== file.name || (!info.isFile() && !info.isDirectory() && !info.isSymbolicLink())) {
       throw new Error(`Cannot organize ${file.name}`);
@@ -28,6 +29,7 @@ export async function organize(files: TalosFile[], onMoving: () => void): Promis
 
   const plans: { directory: string; items: Item[]; categories: string[]; assignments: number[] }[] = [];
   for (const [directory, items] of groups) {
+    signal.throwIfAborted();
     const categories = await chooseCategories(items);
     const assignments: number[] = [];
     for (let start = 0; start < items.length; start += 10) {
@@ -38,6 +40,7 @@ export async function organize(files: TalosFile[], onMoving: () => void): Promis
   }
 
   // All model output has been checked before the first item is moved.
+  signal.throwIfAborted();
   onMoving();
   const selectedPaths = new Set(files.map(file => file.path));
   const createdFolders: string[] = [];
@@ -46,6 +49,7 @@ export async function organize(files: TalosFile[], onMoving: () => void): Promis
     for (const plan of plans) {
       const destinations = new Map<number, string>();
       for (let i = 0; i < plan.items.length; i++) {
+        signal.throwIfAborted();
         const item = plan.items[i]!;
         const category = plan.assignments[i]!;
         let folder = destinations.get(category);
@@ -59,6 +63,7 @@ export async function organize(files: TalosFile[], onMoving: () => void): Promis
         if (current.dev !== item.device || current.ino !== item.inode) {
           throw new Error(`${item.file.name} changed while organizing`);
         }
+        signal.throwIfAborted();
         const destination = await moveItem(item.file.path, folder, current.isFile());
         completed.push({ source: item.file.path, destination });
       }
@@ -178,14 +183,6 @@ async function moveItem(source: string, folder: string, regularFile: boolean): P
   throw new Error(`Could not find an available name for ${name}`);
 }
 
-// Built-ins can use the host bridge before the next public SDK package is published.
-// Newer SDK installations provide the same bridge as talos.appleIntelligence.respond.
 function askModel(prompt: string): Promise<string> {
-  const sdk = talos as typeof talos & { appleIntelligence?: { respond(prompt: string): Promise<string> } };
-  if (sdk.appleIntelligence) return sdk.appleIntelligence.respond(prompt);
-  const request = (globalThis as typeof globalThis & {
-    [key: symbol]: ((prompt: string) => Promise<string>) | undefined;
-  })[Symbol.for('talos.modelRequest')];
-  if (!request) throw new Error('Apple Intelligence requires a newer Talos app');
-  return request(prompt);
+  return talos.appleIntelligence.respond(prompt);
 }

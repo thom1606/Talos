@@ -9,7 +9,7 @@
     "package": "bash scripts/build-tools.sh && bash scripts/build-pdf-tool.sh && bash scripts/build-image-tool.sh && talos build && node scripts/package.mjs"
   },
   "devDependencies": {
-    "@thom1606/talos-sdk": "3.2.0",
+    "@thom1606/talos-sdk": "3.5.0",
     "@types/archiver": "8.0.0",
     "@types/node": "24.10.0",
     "@types/react": "^19.2.0",
@@ -55,7 +55,7 @@
     {
       "name": "redact",
       "displayName": "Redact",
-      "icon": "rectangle.fill",
+      "icon": "eye.slash",
       "description": "Hide parts of an image with black blocks.",
       "supportedFileTypes": [
         "public.png",

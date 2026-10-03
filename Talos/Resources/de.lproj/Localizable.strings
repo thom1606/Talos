@@ -128,3 +128,8 @@
 "%@ has a new release. Open Talos to update." = "Für %@ ist eine neue Version verfügbar. Öffne Talos zum Aktualisieren.";
 
 "Talos has been updated to %@." = "Talos wurde auf %@ aktualisiert.";
+
+"Primary" = "Primär";
+"Secondary" = "Sekundär";
+"Drag actions onto this wheel" = "Aktionen auf dieses Rad ziehen";
+"No actions" = "Keine Aktionen";

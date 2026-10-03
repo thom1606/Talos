@@ -4,9 +4,9 @@ import type { TalosFile } from '@thom1606/talos-sdk';
 import { mediaKind } from '../media';
 import { recompressJPEG } from './jpeg';
 import { optimizePNG } from './png';
-import { ffmpeg, lifecycle, output, probe, run, tool } from './shared';
+import { ffmpeg, output, probe, run, tool } from './shared';
 
-export async function compress(file: TalosFile): Promise<number> {
+export async function compress(file: TalosFile, signal: AbortSignal): Promise<number> {
   const before = (await stat(file.path)).size;
   let extension = extname(file.name).slice(1).toLowerCase();
   const kind = mediaKind(file.name);
@@ -29,12 +29,12 @@ export async function compress(file: TalosFile): Promise<number> {
         // Quality 85 saves about 9–10% on the supplied JPEGs while retaining full dimensions.
         // Prefer the lossless result unless re-encoding saves at least 5%.
         try {
-          await recompressJPEG(file.path, path);
+          await recompressJPEG(file.path, path, signal);
           const reencodedSize = (await stat(path)).size;
           const losslessSize = (await stat(lossless)).size;
           if (reencodedSize >= Math.min(losslessSize, before * 0.95)) await rename(lossless, path);
         } catch {
-          lifecycle.signal.throwIfAborted();
+          signal?.throwIfAborted();
           await rename(lossless, path);
         }
       } finally { await rm(lossless, { force: true }); }

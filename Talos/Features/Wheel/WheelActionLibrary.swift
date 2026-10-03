@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import UniformTypeIdentifiers
 
@@ -14,7 +13,13 @@ final class WheelActionLibrary {
     private let runtime: SDKRuntime
     private let openSettings: () -> Void
     private let reportError: (String) -> Void
-    private var extensions: [LoadedExtension] = []
+    private struct Catalog {
+        let loaded: LoadedExtension
+        let index: ExtensionCommandIndex
+    }
+
+    private var catalogs: [Catalog] = []
+    private var commands: [String: (Catalog, ExtensionCommand)] = [:]
 
     init(
         runtime: SDKRuntime,
@@ -27,84 +32,56 @@ final class WheelActionLibrary {
     }
 
     func update(extensions: [LoadedExtension]) {
-        self.extensions = extensions
+        catalogs = extensions.map { Catalog(loaded: $0, index: ExtensionCommandIndex($0.manifest.commands)) }
+        commands = catalogs.reduce(into: [:]) { result, catalog in
+            for command in catalog.loaded.manifest.commands {
+                result["\(catalog.loaded.id).\(command.name)"] = (catalog, command)
+                _ = WheelActionPresentation.symbol(command.icon, missing: "")
+            }
+        }
     }
 
     func shortcutTiles() -> [ShortcutTile] {
-        let commands = extensions.reduce(into: [String: (LoadedExtension, ExtensionCommand)]()) {
-            result, loaded in
-            for command in loaded.manifest.commands {
-                result["\(loaded.id).\(command.name)"] = (loaded, command)
-            }
-        }
-
-        func options(for command: ExtensionCommand, in loaded: LoadedExtension) -> [(String, ExtensionCommand)] {
-            (command.subcommands ?? []).compactMap { name in
-                guard let child = loaded.manifest.commands.first(where: { $0.name == name }),
-                      child.subcommands?.isEmpty != false else { return nil }
-                return (name, child)
-            }
-        }
-
+        var configuredActions = Set<String>()
         func collect(_ items: [WheelItem], prefix: String = "") -> [ShortcutTile] {
             items.flatMap { item -> [ShortcutTile] in
                 if let children = item.children {
                     let folder = item.customTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
                     return collect(children, prefix: prefix + (folder.map { "\($0) / " } ?? ""))
                 }
-                guard let actionID = item.actionID,
-                      let (loaded, command) = commands[actionID] else { return [] }
-                let title = prefix + displayTitle(for: item, fallback: command.displayName)
-                let subcommands = options(for: command, in: loaded)
-                if !subcommands.isEmpty {
-                    return subcommands.map { name, child in
-                        ShortcutTile(id: "\(item.id.uuidString)/\(name)",
-                                     title: "\(title) / \(child.displayName)",
-                                     tile: Tile(id: item.id, extensionBundleID: loaded.id,
-                                                action: name, config: item.config),
-                                     command: child)
-                    }
-                }
-                return [ShortcutTile(id: item.id.uuidString, title: title,
-                                     tile: Tile(id: item.id, extensionBundleID: loaded.id,
-                                                action: command.name, config: item.config),
-                                     command: command)]
+                guard let actionID = item.actionID else { return [] }
+                configuredActions.insert(actionID)
+                guard let (catalog, command) = commands[actionID] else { return [] }
+                return shortcuts(for: command, in: catalog, item: item,
+                                 title: prefix + WheelActionPresentation.title(for: item, fallback: command.displayName))
             }
         }
 
-        func actionIDs(in items: [WheelItem]) -> [String] {
-            items.flatMap { item in
-                if let children = item.children { return actionIDs(in: children) }
-                return item.actionID.map { [$0] } ?? []
-            }
-        }
-
-        let configured = collect(WheelConfigurationStore.load().items)
-        let configuredActions = Set(actionIDs(in: WheelConfigurationStore.load().items))
-        let referencedSubcommands = Set(extensions.flatMap { loaded in
-            loaded.manifest.commands.flatMap { $0.subcommands ?? [] }.map { "\(loaded.id).\($0)" }
-        })
-        let available = extensions.flatMap { loaded in
-            loaded.manifest.commands.flatMap { command -> [ShortcutTile] in
-                let actionID = "\(loaded.id).\(command.name)"
-                guard !configuredActions.contains(actionID), !referencedSubcommands.contains(actionID) else {
-                    return []
-                }
-                let subcommands = options(for: command, in: loaded)
-                if !subcommands.isEmpty {
-                    return subcommands.map { name, child in
-                        ShortcutTile(id: "\(actionID)/\(name)",
-                                     title: "\(command.displayName) / \(child.displayName)",
-                                     tile: Tile(id: UUID(), extensionBundleID: loaded.id,
-                                                action: name, config: [:]), command: child)
-                    }
-                }
-                return [ShortcutTile(id: actionID, title: command.displayName,
-                                     tile: Tile(id: UUID(), extensionBundleID: loaded.id,
-                                                action: command.name, config: [:]), command: command)]
+        let configured = collect(WheelConfigurationStore.load().allItems)
+        let available = catalogs.flatMap { catalog in
+            catalog.index.roots.flatMap { command -> [ShortcutTile] in
+                guard !configuredActions.contains("\(catalog.loaded.id).\(command.name)") else { return [] }
+                return shortcuts(for: command, in: catalog)
             }
         }
         return configured + available
+    }
+
+    private func shortcuts(for command: ExtensionCommand, in catalog: Catalog,
+                           item: WheelItem? = nil, title: String? = nil) -> [ShortcutTile] {
+        let options = catalog.index.children(of: command).filter { $0.subcommands?.isEmpty != false }
+        let baseID = item?.id.uuidString ?? "\(catalog.loaded.id).\(command.name)"
+        let title = title ?? command.displayName
+        return (options.isEmpty ? [command] : options).map { child in
+            let isChild = child.name != command.name
+            return ShortcutTile(
+                id: baseID + (isChild ? "/\(child.name)" : ""),
+                title: title + (isChild ? " / \(child.displayName)" : ""),
+                tile: Tile(id: item?.id ?? UUID(), extensionBundleID: catalog.loaded.id,
+                           action: child.name, config: item?.config ?? [:]),
+                command: child
+            )
+        }
     }
 
     func performShortcutTile(id: String, files: [DraggedFile]) async throws {
@@ -122,17 +99,11 @@ final class WheelActionLibrary {
         )
     }
 
-    func actions(for files: [DraggedFile]) -> [WheelAction] {
-        let commands = extensions.reduce(into: [String: (LoadedExtension, ExtensionCommand)]()) {
-            result, loadedExtension in
-            for command in loadedExtension.manifest.commands {
-                result["\(loadedExtension.id).\(command.name)"] = (loadedExtension, command)
-            }
-        }
-
-        return WheelConfigurationStore.load().items.compactMap { item in
-            action(from: item, commands: commands, files: files)
-        }
+    func actions(for files: [DraggedFile]) -> [WheelKind: [WheelAction]] {
+        let configuration = WheelConfigurationStore.load()
+        return Dictionary(uniqueKeysWithValues: WheelKind.allCases.map { wheel in
+            (wheel, configuration.items(for: wheel).compactMap { action(from: $0, files: files) })
+        })
     }
 
     func perform(_ action: WheelAction, files: [DraggedFile]) {
@@ -158,24 +129,24 @@ final class WheelActionLibrary {
 
     func prepare(_ action: WheelAction) {
         guard case let .extensionAction(tile) = action.destination else { return }
-        Task {
+        let bundleID = tile.extensionBundleID
+        Task { @concurrent [runtime] in
             // Activation reports any real startup failure if the user actually drops.
-            try? await runtime.prepare(bundleID: tile.extensionBundleID)
+            try? await runtime.prepare(bundleID: bundleID)
         }
     }
 
     private func action(
         from item: WheelItem,
-        commands: [String: (LoadedExtension, ExtensionCommand)],
         files: [DraggedFile]
     ) -> WheelAction? {
         if let children = item.children {
             let matchingChildren = children.compactMap {
-                action(from: $0, commands: commands, files: files)
+                action(from: $0, files: files)
             }
             return WheelAction(
                 id: item.id,
-                title: displayTitle(for: item, fallback: String(localized: "Folder")),
+                title: WheelActionPresentation.title(for: item, fallback: String(localized: "Folder")),
                 symbolName: "folder",
                 destination: .folder(matchingChildren),
                 isEnabled: matchingChildren.contains(where: \.isEnabled)
@@ -186,62 +157,60 @@ final class WheelActionLibrary {
         if actionID == "talos.system.settings" {
             return WheelAction(
                 id: item.id,
-                title: displayTitle(for: item, fallback: String(localized: "Settings")),
+                title: WheelActionPresentation.title(for: item, fallback: String(localized: "Settings")),
                 symbolName: "gearshape",
                 destination: .settings
             )
         }
 
-        guard let (loadedExtension, command) = commands[actionID] else {
+        guard let (catalog, command) = commands[actionID] else {
             return nil
         }
 
-        return extensionAction(command, in: loadedExtension, id: item.id,
-                               title: displayTitle(for: item, fallback: command.displayName),
+        return extensionAction(command, in: catalog, id: item.id,
+                               title: WheelActionPresentation.title(for: item, fallback: command.displayName),
                                files: files, config: item.config)
     }
 
-    private func extensionAction(_ command: ExtensionCommand, in loaded: LoadedExtension,
+    private func extensionAction(_ command: ExtensionCommand, in catalog: Catalog,
                                  id: UUID, title: String? = nil, files: [DraggedFile],
                                  config: [String: TileConfigValue] = [:]) -> WheelAction? {
         let matchingFiles = command.matchingFiles(in: files)
-        if let names = command.subcommands {
+        if command.subcommands != nil {
+            let subcommands = catalog.index.children(of: command)
             let groups = Dictionary(grouping: matchingFiles, by: { $0.category })
             if groups.count > 1 {
                 let children = DraggedFile.Category.allCases.compactMap { category -> WheelAction? in
                     guard let groupFiles = groups[category], !groupFiles.isEmpty else { return nil }
-                    let options = names.compactMap { name -> WheelAction? in
-                        guard let child = loaded.manifest.commands.first(where: { $0.name == name }),
-                              !child.matchingFiles(in: groupFiles).isEmpty else { return nil }
-                        return extensionAction(child, in: loaded, id: UUID(), files: groupFiles)
+                    let options = subcommands.compactMap { child -> WheelAction? in
+                        guard !child.matchingFiles(in: groupFiles).isEmpty else { return nil }
+                        return extensionAction(child, in: catalog, id: UUID(), files: groupFiles)
                     }
                     return WheelAction(id: UUID(), title: "\(category.title) (\(groupFiles.count))",
                                        symbolName: category.symbolName, destination: .folder(options),
                                        isEnabled: options.contains(where: \.isEnabled))
                 }
                 return WheelAction(id: id, title: title ?? command.displayName,
-                                   symbolName: resolvedSymbolName(command.icon), destination: .folder(children),
+                                   symbolName: WheelActionPresentation.symbol(command.icon, missing: ""), destination: .folder(children),
                                    isEnabled: children.contains(where: \.isEnabled))
             }
-            let children = names.compactMap { name -> WheelAction? in
-                guard let child = loaded.manifest.commands.first(where: { $0.name == name }),
-                      !child.matchingFiles(in: matchingFiles).isEmpty else { return nil }
-                return extensionAction(child, in: loaded, id: UUID(), files: matchingFiles)
+            let children = subcommands.compactMap { child -> WheelAction? in
+                guard !child.matchingFiles(in: matchingFiles).isEmpty else { return nil }
+                return extensionAction(child, in: catalog, id: UUID(), files: matchingFiles)
             }
-            return WheelAction(id: id, title: title ?? command.displayName, symbolName: resolvedSymbolName(command.icon),
+            return WheelAction(id: id, title: title ?? command.displayName, symbolName: WheelActionPresentation.symbol(command.icon, missing: ""),
                                destination: .folder(children),
                                isEnabled: children.contains(where: \.isEnabled))
         }
-        return WheelAction(id: id, title: title ?? command.displayName, symbolName: resolvedSymbolName(command.icon),
-                           destination: .extensionAction(Tile(id: id, extensionBundleID: loaded.id,
+        return WheelAction(id: id, title: title ?? command.displayName, symbolName: WheelActionPresentation.symbol(command.icon, missing: ""),
+                           destination: .extensionAction(Tile(id: id, extensionBundleID: catalog.loaded.id,
                                                               action: command.name, config: config)),
                            fileURLs: matchingFiles.map(\.url),
                            isEnabled: !matchingFiles.isEmpty)
     }
 
     private func configured(_ tile: Tile) throws -> Tile {
-        guard let command = extensions.first(where: { $0.id == tile.extensionBundleID })?
-            .manifest.commands.first(where: { $0.name == tile.action }) else { return tile }
+        guard let (_, command) = commands["\(tile.extensionBundleID).\(tile.action)"] else { return tile }
         var configuredTile = tile
         let settings = command.settings ?? []
         let passwords = settings.contains(where: { $0.type == .password })
@@ -268,25 +237,6 @@ final class WheelActionLibrary {
         return configuredTile
     }
 
-}
-
-private extension WheelActionLibrary {
-    func displayTitle(for item: WheelItem, fallback: String) -> String {
-        let customTitle = item.customTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let customTitle, !customTitle.isEmpty {
-            return customTitle
-        }
-
-        return fallback
-    }
-
-    func resolvedSymbolName(_ name: String?) -> String {
-        guard let name, !name.isEmpty else { return "" }
-        guard NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil else {
-            return "questionmark"
-        }
-        return name
-    }
 }
 
 private enum ShortcutTileError: LocalizedError {

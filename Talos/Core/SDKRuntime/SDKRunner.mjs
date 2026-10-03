@@ -29,6 +29,30 @@ if (!entrypoint) {
 let nextRequestID = 0;
 const pendingDialogRequests = new Map();
 const pendingModelRequests = new Map();
+const activations = new Map();
+
+// Signals are local process objects, never part of the JSON sent to a window.
+function scopedContext(context, signal) {
+  return Object.defineProperty({ ...context }, 'signal', { value: signal });
+}
+function finishModelRequest(requestID, pending, error) {
+  pendingModelRequests.delete(requestID);
+  pending.cleanup();
+  pending.finished = true;
+  pending.error = error;
+  pending.reject?.(error);
+  pending.waiting?.();
+}
+function stopPendingRequests() {
+  for (const [id, pending] of pendingModelRequests) {
+    finishModelRequest(id, pending, new Error('Talos closed during model generation'));
+  }
+  for (const [id, pending] of pendingDialogRequests) {
+    pendingDialogRequests.delete(id);
+    pending.cleanup();
+    pending.reject(new Error('Talos closed before the dialog received a response'));
+  }
+}
 Object.defineProperty(globalThis, Symbol.for('talos.modelRequest'), {
   value: (prompt, options = []) => {
     const settings = Array.isArray(options) ? { tools: options } : options;
@@ -36,6 +60,8 @@ Object.defineProperty(globalThis, Symbol.for('talos.modelRequest'), {
     const stream = settings.stream === true;
     const requestID = `${process.pid}-${++nextRequestID}`;
     const context = activationContext.getStore();
+    const signal = context?.signal && settings.signal
+      ? AbortSignal.any([context.signal, settings.signal]) : context?.signal ?? settings.signal;
     const pending = { context, tools: new Map(tools.map(tool => [tool.name, tool])),
       stream, latest: undefined, last: undefined, waiting: undefined, finished: false, error: undefined };
     const send = (method) => process.stdout.write(`${JSON.stringify({ protocol: 'talos', version: 1,
@@ -46,20 +72,20 @@ Object.defineProperty(globalThis, Symbol.for('talos.modelRequest'), {
       } : {} })}\n`);
     const cancel = () => {
       if (!pendingModelRequests.delete(requestID)) return;
-      settings.signal?.removeEventListener('abort', cancel);
+      signal?.removeEventListener('abort', cancel);
       pending.finished = true;
       pending.error = new DOMException('The request was aborted', 'AbortError');
       pending.reject?.(pending.error);
       pending.waiting?.();
       send('modelCancel');
     };
-    pending.cleanup = () => settings.signal?.removeEventListener('abort', cancel);
-    if (settings.signal?.aborted) {
+    pending.cleanup = () => signal?.removeEventListener('abort', cancel);
+    if (signal?.aborted) {
       if (!stream) return Promise.reject(new DOMException('The request was aborted', 'AbortError'));
       return (async function* () { throw new DOMException('The request was aborted', 'AbortError'); })();
     }
     pendingModelRequests.set(requestID, pending);
-    settings.signal?.addEventListener('abort', cancel, { once: true });
+    signal?.addEventListener('abort', cancel, { once: true });
     send('modelRequest');
     if (!stream) return new Promise((resolve, reject) => { pending.resolve = resolve; pending.reject = reject; });
     return (async function* () {
@@ -105,21 +131,20 @@ async function invokeModelTool(command) {
 
 function requestDialog(kind, message) {
   const requestID = `${process.pid}-${++nextRequestID}`;
-
+  const signal = activationContext.getStore()?.signal;
   return new Promise((resolve, reject) => {
-    pendingDialogRequests.set(requestID, { resolve, reject });
-    process.stdout.write(
-      `${JSON.stringify({
-        protocol: 'talos',
-        version: 1,
-        method: 'dialog',
-        requestID,
-        parameters: {
-          kind,
-          message: message === undefined ? '' : String(message),
-        },
-      })}\n`,
-    );
+    const cancel = () => {
+      if (!pendingDialogRequests.delete(requestID)) return;
+      cleanup();
+      reject(new DOMException('The dialog was aborted', 'AbortError'));
+    };
+    const cleanup = () => signal?.removeEventListener('abort', cancel);
+    if (signal?.aborted) { reject(new DOMException('The dialog was aborted', 'AbortError')); return; }
+    pendingDialogRequests.set(requestID, { resolve, reject, cleanup });
+    signal?.addEventListener('abort', cancel, { once: true });
+    process.stdout.write(`${JSON.stringify({ protocol: 'talos', version: 1,
+      method: 'dialog', requestID, parameters: { kind, message: message === undefined ? '' : String(message) },
+    })}\n`);
   });
 }
 
@@ -164,14 +189,15 @@ async function invokeWindow(command) {
     if (typeof method !== 'string' || method.length > 128 || typeof payloadJSON !== 'string' || Buffer.byteLength(payloadJSON) > 32768) {
       throw new Error('Invalid window request');
     }
-    const result = await activationContext.run(window.context,
-      () => window.handler(method, JSON.parse(payloadJSON), window.context, controller.signal));
+    const context = scopedContext(window.context, controller.signal);
+    const result = await activationContext.run(context,
+      () => window.handler(method, JSON.parse(payloadJSON), context, controller.signal));
     const resultJSON = JSON.stringify(result ?? null);
     if (Buffer.byteLength(resultJSON) > 32768) throw new Error('Window response exceeds 32 KB');
     if (!controller.signal.aborted) windowReply(requestID, { resultJSON });
   } catch (error) {
     if (!controller.signal.aborted) windowReply(requestID, { error: String(error?.message ?? error).slice(0, 4096) });
-  } finally { windowRequests.delete(requestID); }
+  } finally { windowRequests.delete(requestID); controller.abort(); }
 }
 
 // A hover may start this host before a drop. Do not execute extension code until activation.
@@ -193,6 +219,8 @@ let deactivated = false;
 async function deactivate() {
   if (deactivated) return;
   deactivated = true;
+  for (const activation of activations.values()) activation.controller.abort();
+  stopPendingRequests();
   for (const id of windows.keys()) closeWindow(id);
   if (!extensionPromise) return;
   // A failed import was already reported by activation; there is nothing to tear down.
@@ -202,6 +230,13 @@ async function deactivate() {
 
 const commands = createInterface({ input: process.stdin, crlfDelay: Infinity });
 let activationQueue = Promise.resolve();
+// Native teardown closes the pipes and sends SIGTERM; give scoped helpers time to clean up.
+process.once('SIGTERM', () => { void deactivate(); commands.close(); });
+process.stdout.on('error', (error) => {
+  if (error.code !== 'EPIPE') throw error;
+  void deactivate();
+  commands.close();
+});
 
 for await (const line of commands) {
   if (!line.trim()) continue;
@@ -209,6 +244,10 @@ for await (const line of commands) {
   try {
     const command = JSON.parse(line);
 
+    if (command.type === 'cancelActivation') {
+      activations.get(command.requestID)?.controller.abort();
+      continue;
+    }
     if (command.type === 'windowRequest') { void invokeWindow(command); continue; }
     if (command.type === 'windowClosed') { closeWindow(command.windowID); continue; }
     if (command.type === 'cancelWindowRequest') {
@@ -239,11 +278,10 @@ for await (const line of commands) {
     }
     if (command.type === 'response') {
       const pendingRequest = pendingDialogRequests.get(command.requestID);
-      if (!pendingRequest) {
-        throw new Error(`Unknown Talos response: ${command.requestID}`);
-      }
+      if (!pendingRequest) continue; // A reply may arrive after cancellation.
 
       pendingDialogRequests.delete(command.requestID);
+      pendingRequest.cleanup();
       pendingRequest.resolve(command.value);
       continue;
     }
@@ -255,24 +293,27 @@ for await (const line of commands) {
         throw new Error('Talos provided an invalid activation context');
       }
 
+      const requestID = command.requestID ?? `${process.pid}-activation-${++nextRequestID}`;
+      const controller = new AbortController();
+      const scoped = scopedContext(context, controller.signal);
+      activations.set(requestID, { controller });
       activationQueue = activationQueue.then(async () => {
-        if (deactivated) {
-          if (command.requestID) process.stdout.write(`${JSON.stringify({
-            protocol: 'talos', version: 1, method: 'activationComplete', requestID: command.requestID,
-            parameters: { error: 'The extension stopped before the action ran.' },
-          })}\n`);
-          return;
-        }
         let errorMessage;
         try {
+          if (deactivated) throw new Error('The extension stopped before the action ran.');
+          controller.signal.throwIfAborted();
           const extension = await loadExtension();
-          await activationContext.run(context, () => extension.activate(context));
+          controller.signal.throwIfAborted();
+          await activationContext.run(scoped, () => extension.activate(scoped));
         } catch (error) {
           errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+          if (!controller.signal.aborted) console.error(error instanceof Error ? error.stack ?? error.message : String(error));
         } finally {
+          // Fire-and-forget work must not outlive its handler. Windows get their own request scopes.
+          activations.delete(requestID);
+          controller.abort();
           if (command.requestID) process.stdout.write(`${JSON.stringify({
-            protocol: 'talos', version: 1, method: 'activationComplete', requestID: command.requestID,
+            protocol: 'talos', version: 1, method: 'activationComplete', requestID,
             parameters: { error: errorMessage },
           })}\n`);
         }
@@ -293,11 +334,6 @@ for await (const line of commands) {
   }
 }
 
-for (const { reject } of pendingDialogRequests.values()) {
-  reject(new Error('Talos closed before the dialog received a response'));
-}
-pendingDialogRequests.clear();
-for (const { reject } of pendingModelRequests.values()) reject(new Error('Talos closed during model generation'));
-pendingModelRequests.clear();
 await deactivate();
 await activationQueue;
+activationContext.disable();

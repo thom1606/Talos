@@ -31,6 +31,17 @@ struct WheelSettingsView: View {
             .background(.primary.opacity(0.04), ignoresSafeAreaEdges: [])
 
             VStack(spacing: 0) {
+                Picker("Wheel", selection: $viewModel.selectedWheel) {
+                    ForEach(WheelKind.allCases) { wheel in
+                        Text(wheel.title).tag(wheel)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 240)
+                .accessibilityIdentifier("wheel.selector")
+                .padding(.top, 20)
+
                 Spacer()
 
                 WheelPreview(
@@ -51,6 +62,13 @@ struct WheelSettingsView: View {
                 } action: { frame in
                     viewModel.updateWheelFrame(frame)
                 }
+
+                Text("Drag actions onto this wheel")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .opacity(viewModel.visibleEntries.isEmpty ? 1 : 0)
+                    .accessibilityHidden(!viewModel.visibleEntries.isEmpty)
+                    .padding(.bottom, 16)
 
                 Spacer()
             }

@@ -22,6 +22,7 @@ jobs:
           package-manager-cache: false
       - run: npm ci --prefix built-in-actions --ignore-scripts
       - run: npm run typecheck --prefix built-in-actions
+      - run: node --test scripts/tests/sdk-runner.test.mjs
   test:
     # The Xcode runner executes build scripts; fork PRs run only on a disposable hosted runner.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -56,7 +57,7 @@ jobs:
           path: build/TalosFlows.xcresult
           if-no-files-found: warn
   package:
-    needs: test
+    needs: [test, extension-typecheck]
     if: github.ref == 'refs/heads/release/production' && github.event_name != 'pull_request'
     runs-on: xcode-27
     timeout-minutes: 60

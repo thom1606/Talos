@@ -27,6 +27,14 @@ final class WheelDragPosition {
 @Observable
 final class WheelSettingsViewModel {
     var editingEntry: WheelItem?
+    var selectedWheel: WheelKind = .primary {
+        didSet {
+            guard selectedWheel != oldValue else { return }
+            resetInteractions()
+            editingEntry = nil
+            folderPath = []
+        }
+    }
 
     let dragPosition = WheelDragPosition()
     private(set) var draggedEntry: WheelItem?
@@ -109,7 +117,7 @@ final class WheelSettingsViewModel {
         let localPoint = CGPoint(x: location.x - wheelFrame.minX, y: location.y - wheelFrame.minY)
         let isInside = WheelLayout.editor.contains(localPoint)
         let destination: DragDestination = isInside
-            ? .slot(WheelLayout.editor.insertionIndex(at: localPoint, count: insertionOffsets.count))
+            ? .slot(WheelLayout.editor.insertionIndex(at: localPoint, count: insertionOffsets.count, reservesBack: canNavigateBack))
             : .outside
 
         // Building a new draft only happens when the slot changes.
@@ -153,7 +161,10 @@ final class WheelSettingsViewModel {
 
     func saveEntry(_ updatedEntry: WheelItem) {
         resetInteractions()
-        configuration.replaceItems(with: WheelItem.updating(updatedEntry, in: configuration.items))
+        configuration.replaceItems(
+            with: WheelItem.updating(updatedEntry, in: configuration.items(for: selectedWheel)),
+            in: selectedWheel
+        )
     }
 
     func openFolder(_ id: WheelItem.ID) {
@@ -188,7 +199,7 @@ final class WheelSettingsViewModel {
     }
 
     private var currentEntries: [WheelItem] {
-        WheelItem.items(in: configuration.items, at: folderPath)
+        WheelItem.items(in: configuration.items(for: selectedWheel), at: folderPath)
     }
 
     private func endPress() {
@@ -227,8 +238,8 @@ final class WheelSettingsViewModel {
 
     private func setCurrentEntries(_ entries: [WheelItem]) {
         configuration.replaceItems(with: WheelItem.replacingItems(
-            in: configuration.items, at: folderPath, with: entries
-        ))
+            in: configuration.items(for: selectedWheel), at: folderPath, with: entries
+        ), in: selectedWheel)
     }
 
 }

@@ -123,3 +123,8 @@
 "Couldn't save action" = "Actie opslaan mislukt";
 
 "Talos has been updated to %@." = "Talos is bijgewerkt naar %@.";
+
+"Primary" = "Primair";
+"Secondary" = "Secundair";
+"Drag actions onto this wheel" = "Sleep acties naar dit wheel";
+"No actions" = "Geen acties";

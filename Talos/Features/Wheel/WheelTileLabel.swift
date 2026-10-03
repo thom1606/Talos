@@ -8,9 +8,10 @@ struct WheelTileLabel: View {
     let layout: WheelLayout
     let count: Int
     let isEditor: Bool
+    var reservesBack = false
 
     var body: some View {
-        let width = layout.contentWidth(count: count, maximum: isEditor ? 58 : 68)
+        let width = layout.contentWidth(count: count, maximum: isEditor ? 58 : 68, reservesBack: reservesBack)
         let iconSize = min(isEditor ? 17.0 : 19.0, width * 0.65)
 
         if symbolName.isEmpty {
