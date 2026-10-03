@@ -208,9 +208,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
 
     func finishOnboarding() {
         closeOnboarding()
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        var directory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
-        NSWorkspace.shared.open(downloads)
+        #if DEBUG
+        if TalosPreferences.uiTestRunID != nil,
+           let path = ProcessInfo.processInfo.environment["TALOS_UI_TEST_FINDER_DIRECTORY"] {
+            directory = URL(fileURLWithPath: path, isDirectory: true)
+        }
+        #endif
+        NSWorkspace.shared.open(directory)
     }
 
     func onboardingWindowDidChange(_ window: NSWindow) {

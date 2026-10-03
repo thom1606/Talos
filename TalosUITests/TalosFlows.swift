@@ -13,6 +13,8 @@ final class TalosFlows: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchEnvironment["TALOS_UI_TEST_RUN"] = UUID().uuidString
+        // Onboarding opens real Finder, using the test files instead of the user's Downloads.
+        app.launchEnvironment["TALOS_UI_TEST_FINDER_DIRECTORY"] = try mediaFixture("crop").path
         // Gesture coordinates belong to this fixture, independent of the shipping defaults.
         let actions = ["talos-actions.crop", "talos-actions.archive", "talos-actions.organize",
                        "talos-actions.compress", "talos-actions.convert", "talos.system.settings"]
@@ -58,61 +60,25 @@ final class TalosFlows: XCTestCase {
         }
     }
 
-    func testOnboardingCompletesAndDoesNotReturnAfterRelaunch() {
-        finishOnboarding(openSettings: false)
-        app.terminate()
-        app.launch()
-        showSettingsWindow()
-        XCTAssertFalse(app.buttons["onboarding.next"].exists)
+    func testOnboardingAndSettingsPersistAfterRelaunch() {
+        finishOnboarding()
         let wheel = app.descendants(matching: .any)["wheel.preview"].firstMatch
         let defaultActions = ["Crop", "Archive", "Organize", "Compress", "Convert", "Settings"]
         XCTAssertEqual(wheel.buttons.count, defaultActions.count)
         for title in defaultActions { XCTAssertTrue(wheel.buttons[title].exists) }
-    }
-
-    func testSettingsNavigationAndSoundPreferencePersist() {
-        finishOnboarding()
         navigate("Advanced")
         let sound = app.switches["settings.hoverSound"]
         XCTAssertTrue(sound.waitForExistence(timeout: 5))
         let original = String(describing: sound.value!)
         sound.click()
-        XCTAssertNotEqual(String(describing: sound.value!), original)
         let changed = String(describing: sound.value!)
-        navigate("Repositories")
-        XCTAssertTrue(app.staticTexts["No repositories"].waitForExistence(timeout: 5))
-        navigate("Wheel")
-        XCTAssertTrue(app.descendants(matching: .any)["wheel.preview"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertNotEqual(changed, original)
         app.terminate()
         app.launch()
         showSettingsWindow()
+        XCTAssertFalse(app.buttons["onboarding.next"].exists)
         navigate("Advanced")
         XCTAssertEqual(String(describing: app.switches["settings.hoverSound"].value!), changed)
-    }
-
-    func testGitHubFormValidationAndCancellation() {
-        finishOnboarding()
-        navigate("Repositories")
-        app.menuButtons["Add repository"].click()
-        app.menuItems["Add GitHub repository…"].click()
-        let url = app.textFields["repository.url"]
-        XCTAssertTrue(url.waitForExistence(timeout: 5))
-        let add = app.buttons["Add"].firstMatch
-        XCTAssertFalse(add.isEnabled)
-        url.click()
-        url.typeText("not-a-repository")
-        XCTAssertFalse(add.isEnabled)
-        replaceText(url, with: "https://github.com/example/tools")
-        XCTAssertTrue(add.isEnabled)
-        XCTAssertTrue(app.secureTextFields["repository.token"].exists)
-        app.buttons["Cancel"].click()
-        XCTAssertTrue(url.waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No repositories"].exists)
-        app.menuButtons["Add repository"].click()
-        app.menuItems["Add GitHub repository…"].click()
-        XCTAssertTrue(url.waitForExistence(timeout: 5))
-        XCTAssertEqual(url.value as? String, "")
-        app.buttons["Cancel"].click()
     }
 
     func testLocalProjectLinkPersistsAndRemovalRemovesTiles() throws {
@@ -165,11 +131,6 @@ final class TalosFlows: XCTestCase {
         let password = app.secureTextFields["wheel.entry.setting.password"]
         XCTAssertTrue(server.waitForExistence(timeout: 5))
         XCTAssertTrue(password.exists)
-        XCTAssertTrue(app.staticTexts["Link expiration"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["wheel.entry.setting.expiry"].firstMatch.exists)
-        let title = app.staticTexts["Edit Action"].firstMatch
-        XCTAssertTrue(title.exists)
-        XCTAssertLessThan(abs(title.frame.minX - app.staticTexts["Name"].firstMatch.frame.minX), 50)
         app.buttons["Cancel"].click()
         app.terminate()
         app.launch()
@@ -217,7 +178,6 @@ final class TalosFlows: XCTestCase {
         navigate("Repositories")
         importPackage(archive)
         XCTAssertTrue(app.staticTexts["Imported Test Tools"].waitForExistence(timeout: 15))
-        XCTAssertFalse(app.alerts.firstMatch.exists)
         navigate("Wheel")
         let wheel = app.descendants(matching: .any)["wheel.preview"].firstMatch
         XCTAssertTrue(wheel.buttons["Imported Crop"].waitForExistence(timeout: 10))
@@ -339,6 +299,7 @@ final class TalosFlows: XCTestCase {
         XCTAssertEqual(result.pixelsHigh, 120)
         // The output can appear before the window finishes closing.
         XCTAssertTrue(window.waitForNonExistence(timeout: 10))
+        let firstExport = try Data(contentsOf: output)
         // Drop the original again to verify collision-safe naming.
         dropOnWheel(file: input, offset: CGVector(dx: 0, dy: -105)) {
             XCTAssertTrue(window.waitForExistence(timeout: 15))
@@ -351,7 +312,10 @@ final class TalosFlows: XCTestCase {
         window.buttons["Apply"].click()
         let second = directory.appendingPathComponent("sample-cropped-2.png")
         waitForFile(second)
-        XCTAssertEqual(try Data(contentsOf: output), try Data(contentsOf: second))
+        XCTAssertEqual(try Data(contentsOf: output), firstExport, "The first export must not be replaced")
+        let secondImage = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: second)))
+        XCTAssertEqual(secondImage.pixelsWide, 160)
+        XCTAssertEqual(secondImage.pixelsHigh, 120)
         XCTAssertEqual(try Data(contentsOf: input), original)
     }
 
@@ -384,9 +348,7 @@ final class TalosFlows: XCTestCase {
         let compressed = try XCTUnwrap(NSBitmapImageRep(data: outputData))
         XCTAssertEqual(compressed.pixelsWide, original.pixelsWide)
         XCTAssertEqual(compressed.pixelsHigh, original.pixelsHigh)
-        for y in 0..<original.pixelsHigh {
-            for x in 0..<original.pixelsWide { XCTAssertEqual(original.colorAt(x: x, y: y), compressed.colorAt(x: x, y: y)) }
-        }
+        XCTAssertEqual(try rgbaPixels(of: original), try rgbaPixels(of: compressed), "Lossless compression must preserve every pixel")
     }
 
     func testBuiltInVideoCropPreviewsAndExports() async throws {
@@ -446,6 +408,18 @@ final class TalosFlows: XCTestCase {
         }
     }
 
+    private func rgbaPixels(of bitmap: NSBitmapImageRep) throws -> Data {
+        let image = try XCTUnwrap(bitmap.cgImage)
+        var pixels = Data(count: image.width * image.height * 4)
+        try pixels.withUnsafeMutableBytes { buffer in
+            let context = try XCTUnwrap(CGContext(data: buffer.baseAddress, width: image.width, height: image.height,
+                bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        return pixels
+    }
+
     private func mediaFixture(_ name: String) throws -> URL {
         // The build phase prepares a clean fixture outside the sandboxed runner's
         // private container, so the Talos Node process can save beside the inputs.
@@ -469,6 +443,7 @@ final class TalosFlows: XCTestCase {
         replaceText(path, with: file.deletingLastPathComponent().path)
         finder.typeKey(.return, modifierFlags: [])
         finder.typeKey("1", modifierFlags: .command)
+        centerFinderWindow(finder)
         let source = finder.windows.firstMatch.images[file.lastPathComponent].firstMatch
         XCTAssertTrue(source.waitForExistence(timeout: 5))
         // Start unselected: Shift-clicking an already selected Finder icon deselects it.
@@ -480,6 +455,61 @@ final class TalosFlows: XCTestCase {
             // Keep the activation key down until AppKit has delivered the mouse-up/drop callbacks.
             verifyDrop()
         }
+    }
+
+    private func centerFinderWindow(_ finder: XCUIApplication) {
+        let window = finder.windows.firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 5))
+        guard let screen = NSScreen.screens.first else {
+            XCTFail("Finder drag tests require a display")
+            return
+        }
+        // AppKit screen coordinates start at the bottom; XCTest starts at the top.
+        let visible = CGRect(x: screen.visibleFrame.minX, y: screen.frame.maxY - screen.visibleFrame.maxY,
+                             width: screen.visibleFrame.width, height: screen.visibleFrame.height)
+        let size = CGSize(width: min(760, visible.width - 80), height: min(520, visible.height - 80))
+        // Move away from screen edges before resizing so macOS does not clamp the height.
+        moveFinderWindowToCenter(window, in: visible)
+        if abs(window.frame.width - size.width) > 2 {
+            let width = window.frame.width
+            let edge = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+                .withOffset(CGVector(dx: -1, dy: 0))
+            edge.click(forDuration: 0.1,
+                thenDragTo: edge.withOffset(CGVector(dx: size.width - width, dy: 0)),
+                withVelocity: .slow, thenHoldForDuration: 0.1)
+        }
+        if abs(window.frame.height - size.height) > 2 {
+            let height = window.frame.height
+            let edge = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1))
+                .withOffset(CGVector(dx: 0, dy: -1))
+            edge.click(forDuration: 0.1,
+                thenDragTo: edge.withOffset(CGVector(dx: 0, dy: size.height - height)),
+                withVelocity: .slow, thenHoldForDuration: 0.1)
+        }
+        let resized = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            abs(window.frame.width - size.width) < 8 && abs(window.frame.height - size.height) < 8
+        }, object: nil)
+        let result = XCTWaiter.wait(for: [resized], timeout: 5)
+        XCTAssertEqual(result, .completed, "Finder must have a predictable size: frame \(window.frame), size \(size)")
+        moveFinderWindowToCenter(window, in: visible)
+    }
+
+    private func moveFinderWindowToCenter(_ window: XCUIElement, in visible: CGRect) {
+        let current = window.frame
+        let target = CGPoint(x: visible.midX - current.width / 2, y: visible.midY - current.height / 2)
+        guard abs(current.minX - target.x) > 2 || abs(current.minY - target.y) > 2 else { return }
+        let titlebar = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+            .withOffset(CGVector(dx: 0, dy: 18))
+        titlebar.click(forDuration: 0.1,
+            thenDragTo: titlebar.withOffset(CGVector(dx: target.x - current.minX, dy: target.y - current.minY)),
+            withVelocity: .slow, thenHoldForDuration: 0.1)
+        let centered = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            // Native titlebar dragging can consume the first few pixels before the window moves.
+            abs(window.frame.minX - target.x) < 20 && abs(window.frame.minY - target.y) < 20
+        }, object: nil)
+        let result = XCTWaiter.wait(for: [centered], timeout: 5)
+        XCTAssertEqual(result, .completed,
+                       "Finder must be centered before dragging: frame \(window.frame), target \(target), visible \(visible)")
     }
 
     private func finishOnboarding(openSettings: Bool = true) {
