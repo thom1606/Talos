@@ -1,41 +1,30 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 @MainActor
 final class DragWheelController {
     let model = WheelModel()
 
-    private let actionsProvider: ([DraggedFile]) -> [WheelAction]
+    private let session: WheelDragSession
     private let selectionHandler: (WheelAction, [DraggedFile]) -> Void
     private let hoverHandler: (WheelAction) -> Void
-    private let inspector = DraggedFileInspector()
-    private var draggedFiles: [DraggedFile] = []
-    private var preparedActions: [WheelAction] = []
-    private var inspectionTask: Task<Void, Never>?
     private var closeTask: Task<Void, Never>?
     private var panel: NSPanel?
     private var timer: Timer?
-    private var pasteboardChangeCount = NSPasteboard(name: .drag).changeCount
-    private var dragIsActive = false
-    private var fileTypesAreReady = false
-    private var isSuppressedUntilNextDrag = false
-    private var isReceivingDrag = false
-    private var preparedDrop: (action: WheelAction, changeCount: Int)?
-    private var mouseReleasedAt: Date?
 
     init(
-        actionsProvider: @escaping ([DraggedFile]) -> [WheelAction],
+        actionsProvider: @escaping ([DraggedFile]) -> [WheelKind: [WheelAction]],
         hoverHandler: @escaping (WheelAction) -> Void = { _ in },
         selectionHandler: @escaping (WheelAction, [DraggedFile]) -> Void
     ) {
-        self.actionsProvider = actionsProvider
+        session = WheelDragSession(actionsProvider: actionsProvider)
         self.hoverHandler = hoverHandler
         self.selectionHandler = selectionHandler
     }
 
     func start() {
         guard timer == nil else { return }
+        AppFeedback.shared.prepare()
         preparePanel()
         panel?.contentView?.layoutSubtreeIfNeeded()
 
@@ -49,16 +38,17 @@ final class DragWheelController {
     }
 
     func stop() {
-        endDestinationDrag()
-        inspectionTask?.cancel()
+        session.finish()
         closeTask?.cancel()
         timer?.invalidate()
         timer = nil
         panel?.orderOut(nil)
     }
 
-    func updateHover(_ point: CGPoint) {
+    func updateHover(_ point: CGPoint, optionIsDown: Bool = NSEvent.modifierFlags.contains(.option)) {
         guard model.isVisible else { return }
+        guard selectWheel(optionIsDown ? .secondary : .primary) else { return }
+        session.trackDestination(point)
         let previous = model.hoveredID
         let wasHoveringBack = model.dwellTarget == WheelModel.backTarget
         model.updateHover(at: point)
@@ -74,65 +64,37 @@ final class DragWheelController {
     }
 
     var canDrop: Bool {
-        guard
-            model.isVisible,
-            NSEvent.modifierFlags.contains(.shift),
-            let hoveredAction = model.hoveredAction
-        else {
-            return false
-        }
-
-        if case .folder = hoveredAction.destination { return false }
-        return hoveredAction.isEnabled
+        let modifiers = NSEvent.modifierFlags
+        return session.target(for: model, shiftIsDown: modifiers.contains(.shift),
+                              optionIsDown: modifiers.contains(.option)) != nil
     }
 
     func beginDestinationDrag() {
         traceDrag("destination entered")
-        isReceivingDrag = true
-        preparedDrop = nil
+        session.beginDestination()
     }
 
     func endDestinationDrag() {
         traceDrag("destination ended")
-        isReceivingDrag = false
-        preparedDrop = nil
+        session.endDestination()
     }
 
     /// Capture AppKit's accepted target before mouse-up/modifier changes can clear hover.
     func prepareDrop(at point: CGPoint, pasteboard: NSPasteboard,
-                     shiftIsDown: Bool = NSEvent.modifierFlags.contains(.shift)) -> Bool {
-        traceDrag("prepare receiving=\(isReceivingDrag) visible=\(model.isVisible) shift=\(shiftIsDown) point=\(point)")
-        preparedDrop = nil
-        guard isReceivingDrag, model.isVisible, shiftIsDown else { return false }
-        updateHover(point)
-        guard let action = model.hoveredAction, !action.isFolder, action.isEnabled else { return false }
-        preparedDrop = (action, pasteboard.changeCount)
-        return true
+                     shiftIsDown: Bool = NSEvent.modifierFlags.contains(.shift),
+                     optionIsDown: Bool = NSEvent.modifierFlags.contains(.option)) -> Bool {
+        traceDrag("prepare receiving=\(session.isReceiving) visible=\(model.isVisible) shift=\(shiftIsDown) point=\(point)")
+        if session.isReceiving, model.isVisible, shiftIsDown {
+            updateHover(point, optionIsDown: optionIsDown)
+        }
+        return session.prepareDrop(for: model, changeCount: pasteboard.changeCount,
+                                   shiftIsDown: shiftIsDown, optionIsDown: optionIsDown)
     }
 
     func accept(_ pasteboard: NSPasteboard) -> Bool {
-        traceDrag("accept prepared=\(preparedDrop != nil) count=\(pasteboard.changeCount)")
-        guard let preparedDrop, preparedDrop.changeCount == pasteboard.changeCount else { return false }
-        // Consume once: subsequent callbacks must never dispatch the action twice.
-        self.preparedDrop = nil
-        let action = preparedDrop.action
-        guard action.isEnabled else { return false }
-        guard pasteboard.canReadObject(
-            forClasses: [NSURL.self],
-            options: [.urlReadingFileURLsOnly: true]
-        ) else {
-            return false
-        }
-
-        // Read the actual drop here so AppKit delivers access to the selected files.
-        guard let urls = pasteboard.readObjects(
-            forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]
-        ) as? [URL], !urls.isEmpty else { return false }
-        let types = Dictionary(draggedFiles.map { ($0.url, $0.contentType) }, uniquingKeysWith: { first, _ in first })
-        let files = urls.map { DraggedFile(url: $0, contentType: types[$0] ?? .data) }
-        traceDrag("dispatch files=\(files.count)")
-        selectionHandler(action, files)
-        isSuppressedUntilNextDrag = true
+        guard let drop = session.consumeDrop(pasteboard) else { return false }
+        traceDrag("dispatch files=\(drop.files.count)")
+        selectionHandler(drop.action, drop.files)
         dismiss()
         return true
     }
@@ -140,97 +102,39 @@ final class DragWheelController {
     func tick(pasteboard: NSPasteboard = NSPasteboard(name: .drag),
               primaryMouseButtonIsDown: Bool = NSEvent.pressedMouseButtons & 1 != 0,
               now: Date = .now) {
-        if pasteboard.changeCount != pasteboardChangeCount {
-            pasteboardChangeCount = pasteboard.changeCount
-            if primaryMouseButtonIsDown {
-                beginDrag(using: pasteboard)
-            }
-        }
-
-        guard primaryMouseButtonIsDown else {
-            // AppKit owns completion while the pointer is over our destination.
-            // Mouse-up can be observed before prepare/performDragOperation run.
-            guard !isReceivingDrag else { return }
-            // Even draggingEntered can arrive after the global mouse-up state changes.
-            // Keep the destination alive briefly so AppKit can deliver that final drop.
-            // A cancelled/outside drop still closes, without dispatching any action.
-            if model.isVisible {
-                if mouseReleasedAt == nil { mouseReleasedAt = now }
-                if let mouseReleasedAt, now.timeIntervalSince(mouseReleasedAt) < 0.25 { return }
-            }
-            finishCurrentDrag()
+        switch session.poll(pasteboard, mouseIsDown: primaryMouseButtonIsDown, isVisible: model.isVisible, now: now) {
+        case .began:
+            if model.isVisible { dismiss() }
+        case .ended:
+            if model.isVisible { dismiss() }
             return
+        case .waiting:
+            return
+        case .tracking:
+            break
         }
-        mouseReleasedAt = nil
 
-        let shouldShow = dragIsActive
-            && fileTypesAreReady
-            && NSEvent.modifierFlags.contains(.shift)
-            && !isSuppressedUntilNextDrag
-
-        guard shouldShow else {
+        let modifiers = NSEvent.modifierFlags
+        let wheel: WheelKind = modifiers.contains(.option) ? .secondary : .primary
+        guard session.content != nil, modifiers.contains(.shift) else {
             if model.isVisible { dismiss() }
             return
         }
 
         if !model.isVisible {
-            show()
+            show(wheel: wheel)
+        } else if !selectWheel(wheel) {
+            return
         }
         guard let panel else { return }
         // AppKit's drag location is authoritative while the cursor is over the wheel.
-        // Alternating it with the polled mouse position can briefly clear and re-enter a tile.
-        guard !isReceivingDrag else { return }
-
-        let mouse = NSEvent.mouseLocation
-        updateHover(
-            CGPoint(
-                x: mouse.x - panel.frame.minX,
-                y: panel.frame.maxY - mouse.y
-            )
-        )
-    }
-
-    private func beginDrag(using pasteboard: NSPasteboard) {
-        mouseReleasedAt = nil
-        endDestinationDrag()
-        dragIsActive = pasteboard.canReadObject(
-            forClasses: [NSURL.self],
-            options: [.urlReadingFileURLsOnly: true]
-        )
-        isSuppressedUntilNextDrag = false
-        fileTypesAreReady = false
-        preparedActions = []
-        draggedFiles = []
-        inspectionTask?.cancel()
-        if model.isVisible { dismiss() }
-
-        guard dragIsActive else { return }
-        let urls = pasteboard.readObjects(
-            forClasses: [NSURL.self],
-            options: [.urlReadingFileURLsOnly: true]
-        ) as? [URL] ?? []
-
-        inspectionTask = Task { [weak self] in
-            guard let self else { return }
-            let files = await inspector.inspect(urls)
-            guard !Task.isCancelled else { return }
-
-            draggedFiles = files
-            preparedActions = actionsProvider(files)
-            fileTypesAreReady = true
-            panel?.contentView?.layoutSubtreeIfNeeded()
+        if session.isReceiving {
+            if let location = session.location { updateHover(location, optionIsDown: modifiers.contains(.option)) }
+            return
         }
-    }
-
-    private func finishCurrentDrag() {
-        guard dragIsActive || model.isVisible else { return }
-        traceDrag("finish hover=\(model.hoveredID?.uuidString ?? "none") receiving=\(isReceivingDrag)")
-        dragIsActive = false
-        mouseReleasedAt = nil
-        fileTypesAreReady = false
-        isSuppressedUntilNextDrag = false
-        inspectionTask?.cancel()
-        if model.isVisible { dismiss() }
+        let mouse = NSEvent.mouseLocation
+        updateHover(CGPoint(x: mouse.x - panel.frame.minX, y: panel.frame.maxY - mouse.y),
+                    optionIsDown: modifiers.contains(.option))
     }
 
     private func preparePanel() {
@@ -286,11 +190,25 @@ final class DragWheelController {
         #endif
     }
 
-    private func show() {
-        traceDrag("show prepared=\(preparedActions.count)")
-        guard !preparedActions.isEmpty else { return }
+    @discardableResult
+    private func selectWheel(_ wheel: WheelKind) -> Bool {
+        guard session.content?.actions[wheel]?.isEmpty == false else {
+            session.invalidateDrop()
+            if model.isVisible { dismiss() }
+            return false
+        }
+        guard model.activeWheel != wheel else { return true }
+        model.switchWheel(to: wheel)
+        session.invalidateDrop()
+        traceDrag("wheel changed=\(wheel.rawValue) actions=\(model.actions.count)")
+        return true
+    }
+
+    private func show(wheel: WheelKind) {
+        guard let content = session.content, content.actions[wheel]?.isEmpty == false else { return }
+        traceDrag("show wheel=\(wheel.rawValue)")
         closeTask?.cancel()
-        model.reset(actions: preparedActions)
+        model.reset(actions: content.actions[.primary] ?? [], secondaryActions: content.actions[.secondary] ?? [], wheel: wheel)
         preparePanel()
         panel?.contentView?.layoutSubtreeIfNeeded()
 

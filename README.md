@@ -22,8 +22,11 @@ This directory contains the macOS app. To build extensions, see the
 4. Drag a file or folder in Finder, hold **Shift**, and drop it on an action.
 
 Click a wheel tile in settings to rename it. Use folders to group actions;
-press and hold a folder tile to open it. The preview selector lets you see
-which actions are available for folders, images, video, audio and PDFs.
+press and hold a folder tile to open it.
+
+Use the **Primary / Secondary** selector in Wheel settings to configure two
+separate wheels. While dragging, hold **Shift + Option** for the secondary
+wheel. Release **Option** to return to the primary wheel and its open folder.
 
 Talos keeps running when you close settings. Open the app again to return to
 settings. Extensions can show native dialogs, toasts, Markdown content, and
@@ -39,6 +42,7 @@ In **Repositories → Add repository**, choose:
 - **Add GitHub repository…** to install a published extension release. The
   optional personal access token supports private repositories and is stored
   in macOS Keychain.
+- **Import .talos…** to install an extension package from your Mac.
 
 Installed extensions are stored in
 `~/Library/Application Support/Talos/Extensions/` and loaded from disk on
@@ -46,9 +50,6 @@ subsequent launches. Talos checks remote release metadata every hour while
 running. Available updates produce notifications when macOS notification
 permission is enabled; installing an update remains an explicit action in
 Repositories.
-
-The **Import .talos…** menu item is currently a placeholder. Use a linked local
-project or GitHub repository to load extensions in this version.
 
 ## Sponsorship
 

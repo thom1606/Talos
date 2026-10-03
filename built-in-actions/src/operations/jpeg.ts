@@ -1,17 +1,29 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
-import { active, lifecycle, tool } from './shared';
+import { tool } from './shared';
 
-export async function recompressJPEG(input: string, output: string): Promise<void> {
-  lifecycle.signal.throwIfAborted();
+export async function recompressJPEG(input: string, output: string, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
   const controller = new AbortController();
-  active.add(controller);
+  const abort = () => controller.abort();
+  signal.addEventListener('abort', abort, { once: true });
+  const children: ChildProcess[] = [];
+  const completions: Promise<void>[] = [];
+  let killTimer: ReturnType<typeof setTimeout> | undefined;
+  const forceStop = () => {
+    killTimer ??= setTimeout(() => { for (const child of children) child.kill('SIGKILL'); }, 250);
+  };
+  controller.signal.addEventListener('abort', forceStop, { once: true });
   const deadline = setTimeout(() => controller.abort(), 30 * 60_000);
   try {
     // Stream decoded pixels to the encoder instead of writing a large intermediate image.
-    const decoder = spawn(await tool('djpeg'), ['-ppm', input], { signal: controller.signal, stdio: ['ignore', 'pipe', 'pipe'] });
-    const encoder = spawn(await tool('cjpeg'), ['-quality', '85', '-optimize', '-progressive', '-outfile', output],
+    const [decoderPath, encoderPath] = await Promise.all([tool('djpeg'), tool('cjpeg')]);
+    signal.throwIfAborted();
+    const decoder = spawn(decoderPath, ['-ppm', input], { signal: controller.signal, stdio: ['ignore', 'pipe', 'pipe'] });
+    children.push(decoder);
+    const encoder = spawn(encoderPath, ['-quality', '85', '-optimize', '-progressive', '-outfile', output],
       { signal: controller.signal, stdio: ['pipe', 'ignore', 'pipe'] });
+    children.push(encoder);
     decoder.stdout.pipe(encoder.stdin);
     encoder.stdin.on('error', () => {}); // The encoder may close before the decoder finishes after a failure.
     const completed = (child: ChildProcess) => new Promise<void>((resolve, reject) => {
@@ -20,9 +32,18 @@ export async function recompressJPEG(input: string, output: string): Promise<voi
       child.once('error', reject);
       child.once('close', code => code === 0 ? resolve() : reject(new Error(error.trim() || `JPEG operation stopped (${code})`)));
     });
-    await Promise.all([completed(decoder), completed(encoder)]).catch(error => { controller.abort(); throw error; });
+    completions.push(...children.map(child => completed(child).catch(error => { controller.abort(); throw error; })));
+    await Promise.all(completions);
+    signal.throwIfAborted();
     await copyJPEGMetadata(input, output);
-  } finally { clearTimeout(deadline); active.delete(controller); }
+  } finally {
+    controller.abort();
+    await Promise.allSettled(completions);
+    clearTimeout(deadline);
+    if (killTimer) clearTimeout(killTimer);
+    signal.removeEventListener('abort', abort);
+    controller.signal.removeEventListener('abort', forceStop);
+  }
 }
 
 // cjpeg writes new image data but not the original application markers. Copy metadata

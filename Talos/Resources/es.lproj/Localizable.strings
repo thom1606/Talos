@@ -123,3 +123,8 @@
 "Couldn't save action" = "No se pudo guardar la acción";
 
 "Talos has been updated to %@." = "Talos se ha actualizado a %@.";
+
+"Primary" = "Principal";
+"Secondary" = "Secundaria";
+"Drag actions onto this wheel" = "Arrastra acciones a esta rueda";
+"No actions" = "Sin acciones";

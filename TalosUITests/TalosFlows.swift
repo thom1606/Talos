@@ -12,6 +12,17 @@ final class TalosFlows: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        // A production instance can otherwise intercept the same Shift-drag.
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.thom1606.Talos")
+        for bundleURL in Set(runningApps.compactMap(\.bundleURL)) {
+            XCUIApplication(url: bundleURL).terminate()
+        }
+        let stopped = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            NSRunningApplication.runningApplications(withBundleIdentifier: "com.thom1606.Talos")
+                .allSatisfy(\.isTerminated)
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [stopped], timeout: 5), .completed,
+                       "Close every running Talos instance before launching the test app")
         app.launchEnvironment["TALOS_UI_TEST_RUN"] = UUID().uuidString
         // Onboarding opens real Finder, using the test files instead of the user's Downloads.
         app.launchEnvironment["TALOS_UI_TEST_FINDER_DIRECTORY"] = try mediaFixture("crop").path
@@ -259,6 +270,115 @@ final class TalosFlows: XCTestCase {
         XCTAssertFalse(app.buttons["Discard this"].exists)
     }
 
+    func testEmptySecondaryWheelDoesNotShowOrAcceptDrop() throws {
+        finishOnboarding(openSettings: false)
+        let directory = try mediaFixture("crop")
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -105),
+                    modifiers: [.shift, .option]) {
+            XCTAssertFalse(app.windows["Crop"].waitForExistence(timeout: 1),
+                           "An empty secondary must not run the primary action")
+        }
+        let trace = try String(contentsOf: XCTUnwrap(dragLog), encoding: .utf8)
+        XCTAssertFalse(trace.contains("show wheel=secondary"), "An empty secondary must not present a live wheel")
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -105)) {
+            XCTAssertTrue(app.windows["Crop"].waitForExistence(timeout: 10),
+                          "The primary wheel must remain available after Option is released")
+        }
+    }
+
+    func testSecondaryWheelPersistsSeparatelyAndAcceptsOptionDrop() throws {
+        finishOnboarding()
+        let wheel = app.descendants(matching: .any)["wheel.preview"].firstMatch
+        let selector = app.descendants(matching: .any)["wheel.selector"].firstMatch
+        let primary = selector.descendants(matching: .any)["Primary"].firstMatch
+        let secondary = selector.descendants(matching: .any)["Secondary"].firstMatch
+        XCTAssertTrue(secondary.waitForExistence(timeout: 5))
+        secondary.click()
+        XCTAssertEqual(wheel.buttons.count, 0)
+        XCTAssertTrue(app.staticTexts["Drag actions onto this wheel"].exists)
+
+        let archive = app.descendants(matching: .any)["wheel.palette.talos-actions.archive"].firstMatch
+        let destination = wheel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -90))
+        archive.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .click(forDuration: 0.1, thenDragTo: destination, withVelocity: .slow, thenHoldForDuration: 0.1)
+        XCTAssertTrue(wheel.buttons["Archive"].waitForExistence(timeout: 5))
+        destination.click()
+        let name = app.textFields["wheel.entry.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        replaceText(name, with: "Extra archive")
+        app.buttons["Save"].click()
+        XCTAssertTrue(wheel.buttons["Extra archive"].waitForExistence(timeout: 5))
+        primary.click()
+        XCTAssertEqual(wheel.buttons.count, 6)
+        XCTAssertTrue(wheel.buttons["Archive"].exists)
+        XCTAssertFalse(wheel.buttons["Extra archive"].exists)
+
+        app.terminate()
+        app.launch()
+        showSettingsWindow()
+        navigate("Wheel")
+        XCTAssertTrue(primary.waitForExistence(timeout: 5))
+        XCTAssertEqual(wheel.buttons.count, 6)
+        secondary.click()
+        XCTAssertTrue(wheel.buttons["Extra archive"].waitForExistence(timeout: 5))
+        XCTAssertEqual(wheel.buttons.count, 1)
+        let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        screenshot.name = "Secondary wheel configuration"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        app.typeKey("w", modifierFlags: .command)
+        let directory = try mediaFixture("crop")
+        let output = directory.appendingPathComponent("Archive.zip")
+        try? FileManager.default.removeItem(at: output)
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: 0, dy: -105),
+                    modifiers: [.shift, .option]) {
+            waitForFile(output)
+        }
+        XCTAssertFalse(app.windows["Crop"].exists, "Shift + Option must select the secondary action instead of primary Crop")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("sample.png").path))
+    }
+
+    func testBackRemainsAtBottomWhileFolderContentsChange() {
+        finishOnboarding()
+        let wheel = app.descendants(matching: .any)["wheel.preview"].firstMatch
+        let center = wheel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let destination = center.withOffset(CGVector(dx: 0, dy: -90))
+        let folderSource = app.descendants(matching: .any)["wheel.palette.folder"].firstMatch
+        folderSource.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .click(forDuration: 0.1, thenDragTo: destination, withVelocity: .slow, thenHoldForDuration: 0.1)
+        let folder = wheel.buttons["Folder"]
+        XCTAssertTrue(folder.waitForExistence(timeout: 5))
+        let folderPoint = folder.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        folderPoint.click(forDuration: 0.7, thenDragTo: folderPoint, withVelocity: .slow, thenHoldForDuration: 0.1)
+
+        let back = wheel.buttons["Back to parent folder"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        center.click()
+        XCTAssertTrue(back.exists, "The center must remain a neutral place to read the wheel")
+
+        for (index, action) in ["crop", "archive", "organize", "compress", "convert"].enumerated() {
+            let source = app.descendants(matching: .any)["wheel.palette.talos-actions.\(action)"].firstMatch
+            XCTAssertTrue(source.exists)
+            source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .click(forDuration: 0.1, thenDragTo: destination, withVelocity: .slow, thenHoldForDuration: 0.1)
+            XCTAssertEqual(wheel.buttons.count, index + 2, "Adding an action must preserve the dedicated Back option")
+            center.click()
+            XCTAssertTrue(back.exists)
+            if index == 0 || index == 4 {
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.name = "Folder with \(index + 1) actions and fixed Back"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+            }
+        }
+
+        center.withOffset(CGVector(dx: 0, dy: 102)).click()
+        XCTAssertTrue(folder.waitForExistence(timeout: 5), "Back must work at the same bottom position with five actions")
+        XCTAssertFalse(back.exists)
+    }
+
     func testQuittingExtensionWindowKeepsTalosRunning() throws {
         let directory = try mediaFixture("crop")
         finishOnboarding(openSettings: false)
@@ -322,9 +442,9 @@ final class TalosFlows: XCTestCase {
     func testBuiltInConvertUsesWheelSubmenu() throws {
         let directory = try mediaFixture("convert")
         finishOnboarding(openSettings: false)
-        // Hover Convert to enter its submenu, then release over TIFF in the child wheel.
-        let output = directory.appendingPathComponent("sample-converted.tiff")
-        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: -60, dy: 85)) {
+        // The left edge of Convert overlaps PNG in its submenu, outside the fixed Back segment.
+        let output = directory.appendingPathComponent("sample-converted.png")
+        dropOnWheel(file: directory.appendingPathComponent("sample.png"), offset: CGVector(dx: -100, dy: 25)) {
             waitForFile(output)
         }
         XCTAssertFalse(app.windows["Convert"].exists)
@@ -434,7 +554,8 @@ final class TalosFlows: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [exists], timeout: 20), .completed, "Missing output: \(url.lastPathComponent)")
     }
 
-    private func dropOnWheel(file: URL, offset: CGVector, includingFile: String? = nil, verifyDrop: () -> Void) {
+    private func dropOnWheel(file: URL, offset: CGVector, includingFile: String? = nil,
+                             modifiers: XCUIElement.KeyModifierFlags = .shift, verifyDrop: () -> Void) {
         let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
         finder.activate()
         finder.typeKey("g", modifierFlags: [.command, .shift])
@@ -450,7 +571,7 @@ final class TalosFlows: XCTestCase {
         finder.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.8)).click()
         if let includingFile { finder.windows.firstMatch.images[includingFile].firstMatch.click() }
         let point = source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        XCUIElement.perform(withKeyModifiers: .shift) {
+        XCUIElement.perform(withKeyModifiers: modifiers) {
             point.click(forDuration: 0.2, thenDragTo: point.withOffset(offset), withVelocity: XCUIGestureVelocity(rawValue: 40), thenHoldForDuration: 1.2)
             // Keep the activation key down until AppKit has delivered the mouse-up/drop callbacks.
             verifyDrop()

@@ -13,31 +13,62 @@ nonisolated struct WheelLayout: Equatable {
     let progressOffset: CGFloat
     let gap: CGFloat = 6
 
+    // Navigation keeps a fixed bottom segment at every folder depth.
+    var backAngle: Double { .pi / 2 }
+    var backSpan: Double { 70 * .pi / 180 }
+
     var contentRadius: Double { Double((innerRadius + outerRadius) / 2) }
 
-    func angle(index: Int, count: Int) -> Double {
-        -.pi / 2 + Double(index) * 2 * .pi / Double(max(1, count))
+    func angle(index: Int, count: Int, reservesBack: Bool = false) -> Double {
+        if reservesBack {
+            return actionStartAngle + (Double(index) + 0.5) * span(count: count, reservesBack: true)
+        }
+        return -.pi / 2 + Double(index) * 2 * .pi / Double(max(1, count))
     }
+
+    func span(count: Int, reservesBack: Bool = false) -> Double {
+        (2 * .pi - (reservesBack ? backSpan : 0)) / Double(max(1, count))
+    }
+
+    private var actionStartAngle: Double { backAngle + backSpan / 2 - 2 * .pi }
 
     func contains(_ point: CGPoint) -> Bool {
         hypot(point.x - size / 2, point.y - size / 2) <= outerRadius
     }
 
-    func index(at point: CGPoint, count: Int) -> Int? {
+    func index(at point: CGPoint, count: Int, reservesBack: Bool = false) -> Int? {
         guard count > 0 else { return nil }
 
         let x = point.x - size / 2
         let y = point.y - size / 2
         let radius = hypot(x, y)
         guard radius >= innerRadius, radius <= outerRadius else { return nil }
+        guard !reservesBack || !isBack(at: point) else { return nil }
 
-        return insertionIndex(at: point, count: count)
+        return insertionIndex(at: point, count: count, reservesBack: reservesBack)
     }
 
-    func insertionIndex(at point: CGPoint, count: Int) -> Int {
+    func isBack(at point: CGPoint) -> Bool {
+        let x = point.x - size / 2
+        let y = point.y - size / 2
+        let radius = hypot(x, y)
+        return radius >= innerRadius && radius <= outerRadius
+            && abs(atan2(y, x) - backAngle) <= backSpan / 2
+    }
+
+    func insertionIndex(at point: CGPoint, count: Int, reservesBack: Bool = false) -> Int {
         let count = max(1, count)
         let x = point.x - size / 2
         let y = point.y - size / 2
+        if reservesBack {
+            let normalized = (atan2(y, x) - actionStartAngle + 2 * .pi)
+                .truncatingRemainder(dividingBy: 2 * .pi)
+            let actionSpan = 2 * .pi - backSpan
+            if normalized >= actionSpan {
+                return normalized - actionSpan < backSpan / 2 ? count - 1 : 0
+            }
+            return min(count - 1, Int(normalized / span(count: count, reservesBack: true)))
+        }
         let step = 2 * Double.pi / Double(count)
         let normalized = (atan2(y, x) + .pi / 2 + step / 2 + 2 * .pi)
             .truncatingRemainder(dividingBy: 2 * .pi)
@@ -52,8 +83,12 @@ nonisolated struct WheelLayout: Equatable {
         return (fittedGap, min(cornerRadius, innerRadius * availableAngle * 0.9))
     }
 
-    func contentWidth(count: Int, maximum: CGFloat) -> CGFloat {
-        let half = min(.pi / 2, .pi / Double(max(1, count)))
+    func contentWidth(count: Int, maximum: CGFloat, reservesBack: Bool = false) -> CGFloat {
+        contentWidth(span: span(count: count, reservesBack: reservesBack), maximum: maximum)
+    }
+
+    func contentWidth(span: Double, maximum: CGFloat) -> CGFloat {
+        let half = min(.pi / 2, span / 2)
         return min(maximum, 2 * contentRadius * sin(half) * 0.8)
     }
 }
@@ -63,9 +98,13 @@ nonisolated struct WheelSegment: Shape {
     var half: Double
     let layout: WheelLayout
 
-    init(angle: Double, count: Int, layout: WheelLayout = .runtime) {
+    init(angle: Double, count: Int, reservesBack: Bool = false, layout: WheelLayout = .runtime) {
+        self.init(angle: angle, span: layout.span(count: count, reservesBack: reservesBack), layout: layout)
+    }
+
+    init(angle: Double, span: Double, layout: WheelLayout = .runtime) {
         self.angle = angle
-        half = .pi / Double(max(1, count))
+        half = span / 2
         self.layout = layout
     }
 
@@ -161,19 +200,15 @@ nonisolated struct WheelCenter: Shape {
 
 nonisolated struct WheelProgressArc: Shape {
     var angle: Double = -.pi / 2
-    var count: Int? = nil
+    var span: Double
     var layout: WheelLayout = .runtime
 
     func path(in rect: CGRect) -> Path {
-        let radius = count == nil
-            ? min(rect.width, rect.height) / 2 - 5
-            : layout.outerRadius + layout.progressOffset
-        let half = count.map {
-            let segmentHalf = Double.pi / Double(max(1, $0))
-            return segmentHalf - min(0.06, segmentHalf / 4)
-        } ?? Double.pi
-        let start = count == nil ? angle : angle - half
-        let end = count == nil ? angle + 2 * .pi : angle + half
+        let radius = layout.outerRadius + layout.progressOffset
+        let segmentHalf = span / 2
+        let half = segmentHalf - min(0.06, segmentHalf / 4)
+        let start = angle - half
+        let end = angle + half
 
         var path = Path()
         path.addArc(

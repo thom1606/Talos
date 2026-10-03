@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import FoundationModels
+import Darwin
 
 /// Owns loaded extension metadata and the long-lived Node processes used to run it.
 actor SDKRuntime {
@@ -11,6 +12,7 @@ actor SDKRuntime {
     private var extensions: [String: LoadedExtension] = [:]
     private var sessions: [String: ExtensionSession] = [:]
     private var pendingActivations: [String: (sessionID: UUID, continuation: CheckedContinuation<Void, Error>)] = [:]
+    private var cancelledActivations: [String: (sessionID: UUID, timeout: Task<Void, Never>)] = [:]
 
     init(
         hostBundle: Bundle = .main,
@@ -178,15 +180,43 @@ actor SDKRuntime {
                 }
             }
         } onCancel: {
-            Task { await self.cancelActivation(requestID: requestID) }
+            Task { @concurrent [weak self] in await self?.cancelActivation(requestID: requestID) }
         }
     }
 
     private func cancelActivation(requestID: String) {
-        pendingActivations.removeValue(forKey: requestID)?.continuation.resume(throwing: CancellationError())
+        guard let pending = pendingActivations.removeValue(forKey: requestID) else { return }
+        pending.continuation.resume(throwing: CancellationError())
+        guard let session = sessions.values.first(where: { $0.id == pending.sessionID }) else { return }
+        do {
+            try session.sendWindowCommand(.init(type: "cancelActivation", requestID: requestID))
+            let timeout = Task { @concurrent [weak self] in
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
+                await self?.stopUnresponsiveActivation(requestID: requestID)
+            }
+            cancelledActivations[requestID] = (session.id, timeout)
+        } catch {
+            stopSession(sessionID: session.id)
+        }
+    }
+
+    private func stopUnresponsiveActivation(requestID: String) {
+        guard let cancelled = cancelledActivations.removeValue(forKey: requestID) else { return }
+        stopSession(sessionID: cancelled.sessionID)
+    }
+
+    private func stopSession(sessionID: UUID) {
+        guard let (bundleID, session) = sessions.first(where: { $0.value.id == sessionID }) else { return }
+        sessionStopped(extensionID: bundleID, sessionID: sessionID)
+        sessions[bundleID] = nil
+        session.terminate()
     }
 
     func completeActivation(sessionID: UUID, requestID: String, error: String?) {
+        if let cancelled = cancelledActivations[requestID], cancelled.sessionID == sessionID {
+            cancelledActivations[requestID] = nil
+            cancelled.timeout.cancel()
+        }
         guard let pending = pendingActivations[requestID], pending.sessionID == sessionID else { return }
         pendingActivations[requestID] = nil
         if let error {
@@ -387,6 +417,10 @@ actor SDKRuntime {
     }
 
     func sessionStopped(extensionID: String, sessionID: UUID) {
+        for (id, cancelled) in cancelledActivations where cancelled.sessionID == sessionID {
+            cancelledActivations[id] = nil
+            cancelled.timeout.cancel()
+        }
         for (id, pending) in pendingActivations where pending.sessionID == sessionID {
             pendingActivations[id] = nil
             pending.continuation.resume(throwing: SDKRuntimeError.extensionProcessStopped)
@@ -752,6 +786,10 @@ nonisolated private final class ExtensionSession {
         try? errorOutput.close()
         if process.isRunning {
             process.terminate()
+            // An extension may block its event loop and ignore cooperative cancellation.
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2) { [process] in
+                if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+            }
         }
     }
 

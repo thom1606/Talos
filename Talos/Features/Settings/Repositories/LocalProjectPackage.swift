@@ -3,30 +3,8 @@ import Foundation
 struct LocalProjectPackage: Decodable {
     let name: String
     let version: String
-    let talos: TalosConfiguration
-    let commands: [Command]
-
-    struct TalosConfiguration: Decodable {
-        let bundleID: String
-        let entry: String
-        let locales: [String: String]
-
-        private enum CodingKeys: String, CodingKey {
-            case bundleID = "bundleId"
-            case entry
-            case locales
-        }
-    }
-
-    struct Command: Decodable {
-        let name: String
-        let displayName: String
-        let icon: String?
-        let description: String?
-        let supportedFileTypes: [String]
-        let settings: [ExtensionSetting]?
-        let subcommands: [String]?
-    }
+    let talos: ExtensionManifest.TalosConfiguration
+    let commands: [ExtensionCommand]
 
     static func read(from projectURL: URL) throws -> Self {
         let packageURL = projectURL.appending(path: "package.json")
@@ -56,8 +34,7 @@ struct LocalProjectPackage: Decodable {
     }
 
     func wheelTiles(extensionName: String) -> [WheelTilePresentation] {
-        let children = Set(commands.flatMap { $0.subcommands ?? [] })
-        return commands.filter { !children.contains($0.name) }.map { command in
+        ExtensionCommandIndex(commands).roots.map { command in
             WheelTilePresentation(
                 id: "\(talos.bundleID).\(command.name)",
                 extensionBundleID: talos.bundleID,

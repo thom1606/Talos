@@ -5,21 +5,58 @@ import AppKit
 final class AppFeedback {
     static let shared = AppFeedback()
 
-    private let hoverSounds: [NSSound] = {
-        guard let url = Bundle.main.url(forResource: "HoverTick", withExtension: "wav") else { return [] }
-        return (0..<4).compactMap { _ in NSSound(contentsOf: url, byReference: false) }
-    }()
-    private let completionSound = NSSound(named: NSSound.Name("Glass"))
-    private var nextHoverSoundIndex = 0
+    private let sounds = FeedbackSounds()
 
-    private init() {
-        hoverSounds.forEach { $0.volume = 0.6 }
-        completionSound?.volume = 0.25
+    private init() { }
+
+    func prepare() {
+        guard TalosPreferences.defaults.bool(forKey: TalosPreferenceKey.hoverSound)
+                || TalosPreferences.defaults.bool(forKey: TalosPreferenceKey.completionSound) else { return }
+        Task { @concurrent [sounds] in
+            await sounds.prepare()
+        }
     }
 
     func hoveredTargetChanged() {
-        guard TalosPreferences.defaults.bool(forKey: TalosPreferenceKey.hoverSound),
-              !hoverSounds.isEmpty else { return }
+        guard TalosPreferences.defaults.bool(forKey: TalosPreferenceKey.hoverSound) else { return }
+        Task { @concurrent [sounds] in
+            await sounds.playHover()
+        }
+    }
+
+    func actionCompleted() {
+        guard TalosPreferences.defaults.bool(forKey: TalosPreferenceKey.completionSound) else { return }
+        Task { @concurrent [sounds] in
+            await sounds.playCompletion()
+        }
+    }
+}
+
+/// NSSound's first playback can block while connecting to the audio service.
+/// Keep every sound access on one dedicated executor, away from the UI and cooperative pool.
+private actor FeedbackSounds {
+    nonisolated private let queue = DispatchSerialQueue(label: "com.thom1606.Talos.feedback", qos: .userInitiated)
+    nonisolated var unownedExecutor: UnownedSerialExecutor { queue.asUnownedSerialExecutor() }
+
+    private var hoverSounds: [NSSound] = []
+    private var completionSound: NSSound?
+    private var nextHoverSoundIndex = 0
+    private var isPrepared = false
+
+    func prepare() {
+        guard !isPrepared else { return }
+        isPrepared = true
+        if let url = Bundle.main.url(forResource: "HoverTick", withExtension: "wav") {
+            hoverSounds = (0..<4).compactMap { _ in NSSound(contentsOf: url, byReference: false) }
+            hoverSounds.forEach { $0.volume = 0.6 }
+        }
+        completionSound = NSSound(named: NSSound.Name("Glass"))
+        completionSound?.volume = 0.25
+    }
+
+    func playHover() {
+        prepare()
+        guard !hoverSounds.isEmpty else { return }
 
         // Short sounds can overlap without cutting off the previous tile's sound.
         for offset in 0..<hoverSounds.count {
@@ -32,8 +69,8 @@ final class AppFeedback {
         }
     }
 
-    func actionCompleted() {
-        guard TalosPreferences.defaults.bool(forKey: TalosPreferenceKey.completionSound) else { return }
+    func playCompletion() {
+        prepare()
         _ = completionSound?.play()
     }
 }

@@ -1,13 +1,13 @@
 import { createWriteStream } from 'node:fs';
 import { lstat, readdir, readlink } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { basename, extname, join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { finished } from 'node:stream/promises';
 import type { ZipArchive } from 'archiver';
 import type { TalosFile } from '@thom1606/talos-sdk';
-import { lifecycle, output } from './shared';
+import { output } from './shared';
 
-export async function archive(files: TalosFile[]) {
+export async function archive(files: TalosFile[], signal: AbortSignal) {
   if (!files.length) throw new Error('Select files to archive');
   // Archiver's bundled CommonJS dependencies need Node's require at evaluation time.
   (globalThis as typeof globalThis & { require?: NodeRequire }).require ??= createRequire(import.meta.url);
@@ -20,16 +20,16 @@ export async function archive(files: TalosFile[]) {
     zipArchive.on('error', error => destination.destroy(error));
     zipArchive.pipe(destination);
     const abort = () => { zipArchive.abort(); destination.destroy(new Error('Archive stopped')); };
-    lifecycle.signal.addEventListener('abort', abort, { once: true });
+    signal.addEventListener('abort', abort, { once: true });
     try {
       const used = new Set<string>();
       for (const file of files) {
-        lifecycle.signal.throwIfAborted();
+        signal.throwIfAborted();
         // Finder selections from different folders may share a basename in the ZIP root.
         let name = basename(file.name), number = 1;
         while (used.has(name.toLocaleLowerCase())) name = `${basename(file.name, extname(file.name))}-${++number}${extname(file.name)}`;
         used.add(name.toLocaleLowerCase());
-        await appendArchiveEntry(zipArchive, file.path, name, path);
+        await appendArchiveEntry(zipArchive, file.path, name, path, signal);
       }
       await zipArchive.finalize();
       await completed;
@@ -39,22 +39,22 @@ export async function archive(files: TalosFile[]) {
       await completed.catch(() => {});
       throw error;
     } finally {
-      lifecycle.signal.removeEventListener('abort', abort);
+      signal.removeEventListener('abort', abort);
     }
-  });
+  }, signal);
 }
 
-async function appendArchiveEntry(archive: ZipArchive, path: string, name: string, outputPath: string): Promise<void> {
-  lifecycle.signal.throwIfAborted();
+async function appendArchiveEntry(archive: ZipArchive, path: string, name: string, outputPath: string, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
   // The selected folder may contain the temporary ZIP being written beside an input file.
-  if (path === outputPath) return;
+  if (path === outputPath || path === dirname(outputPath)) return;
   const info = await lstat(path);
   if (info.isSymbolicLink()) {
     // Store the link itself; traversing it would change the archive's structure.
     archive.symlink(name, await readlink(path), info.mode);
   } else if (info.isDirectory()) {
     archive.append(Buffer.alloc(0), { name: `${name}/`, type: 'directory', date: info.mtime, mode: info.mode });
-    for (const child of (await readdir(path)).sort()) await appendArchiveEntry(archive, join(path, child), `${name}/${child}`, outputPath);
+    for (const child of (await readdir(path)).sort()) await appendArchiveEntry(archive, join(path, child), `${name}/${child}`, outputPath, signal);
   } else if (info.isFile()) {
     archive.file(path, { name, date: info.mtime, mode: info.mode, stats: info });
   } else {

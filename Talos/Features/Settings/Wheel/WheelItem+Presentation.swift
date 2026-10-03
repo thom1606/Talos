@@ -3,8 +3,7 @@ import Foundation
 extension WheelItem {
     func title(using tiles: [WheelTilePresentation]) -> String {
         if isFolder {
-            let title = customTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return title.isEmpty ? String(localized: "Folder") : title
+            return WheelActionPresentation.title(for: self, fallback: String(localized: "Folder"))
         }
 
         return customTitle

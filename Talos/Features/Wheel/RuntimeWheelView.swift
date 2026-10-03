@@ -3,61 +3,90 @@ import SwiftUI
 struct RuntimeWheelView: View {
     let model: WheelModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         ZStack {
-            WheelGlassSurfaces(actionIDs: model.actions.map(\.id))
+            WheelGlassSurface(surface: .center)
                 .equatable()
                 .allowsHitTesting(false)
 
-            hoverHighlights
-                .allowsHitTesting(false)
-
             ForEach(Array(model.actions.enumerated()), id: \.element.id) { index, action in
-                actionContent(action, index: index)
+                RuntimeWheelTile(model: model, action: action, index: index)
+                    .transition(.identity)
             }
 
-            DwellProgress(
-                model: model,
-                target: WheelModel.backTarget,
-                shape: WheelProgressArc(),
-                color: .white
-            )
-            .frame(width: 88, height: 88)
+            if model.canNavigateBack {
+                RuntimeWheelTile(model: model, action: nil, index: model.actions.count)
+            }
 
-            centerContent
+            WheelCenterContent(model: model)
         }
         .frame(width: WheelLayout.runtime.size, height: WheelLayout.runtime.size)
-        .scaleEffect(model.isVisible ? 1 : (reduceMotion ? 1 : 0.76))
+        .compositingGroup()
         .opacity(model.isVisible ? 1 : 0)
-        .animation(
-            reduceMotion
-                ? .easeOut(duration: 0.12)
-                : .spring(response: 0.34, dampingFraction: 0.78),
-            value: model.isVisible
-        )
-        .animation(.easeInOut(duration: 0.14), value: model.hoveredID)
+        .animation(.easeOut(duration: reduceMotion ? 0.12 : 0.16), value: model.isVisible)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("wheel.runtime.\(model.activeWheel.rawValue)")
     }
+}
 
-    private var hoverHighlights: some View {
-        ZStack {
-            ForEach(Array(model.actions.enumerated()), id: \.element.id) { index, action in
-                let shape = WheelSegment(
-                    angle: WheelLayout.runtime.angle(index: index, count: model.actions.count),
-                    count: model.actions.count
-                )
-                shape.fill(model.hoveredID == action.id && action.isEnabled ? TalosAppearance.glassHoverTint : .clear)
+/// Back and actions share the whole tile, including its glass and entrance.
+private struct RuntimeWheelTile: View {
+    let model: WheelModel
+    let action: WheelAction?
+    let index: Int
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    var body: some View {
+        let layout = WheelLayout.runtime
+        let count = model.actions.count
+        let reservesBack = model.canNavigateBack
+        let isBack = action == nil
+        let angle = isBack ? layout.backAngle : layout.angle(index: index, count: count, reservesBack: reservesBack)
+        let span = isBack ? layout.backSpan : layout.span(count: count, reservesBack: reservesBack)
+        let shape = WheelSegment(angle: angle, span: span)
+        let isEnabled = action?.isEnabled ?? true
+        let isSelected = isBack ? model.dwellTarget == WheelModel.backTarget : model.hoveredID == action?.id
+        let title = action?.title ?? String(localized: "Back")
+        let target = isBack ? WheelModel.backTarget : (action?.isFolder == true && isEnabled ? action?.id.uuidString : nil)
+
+        return WheelGlassSurface(surface: .segment(angle: angle, span: span))
+            .equatable()
+            .overlay {
+                shape.fill(isSelected && isEnabled ? TalosAppearance.glassHoverTint : .clear)
+                    .blendMode(reduceTransparency ? .normal : .multiply)
+                    .animation(.easeInOut(duration: 0.14), value: isSelected)
             }
-
-            WheelCenter().fill(
-                model.dwellTarget == WheelModel.backTarget ? TalosAppearance.glassHoverTint : .clear
-            )
-        }
-        .blendMode(reduceTransparency ? .normal : .multiply)
+            .overlay {
+                if let target {
+                    DwellProgress(model: model, target: target, shape: WheelProgressArc(angle: angle, span: span))
+                }
+            }
+            .overlay {
+                WheelTileLabel(
+                    title: title,
+                    symbolName: action?.symbolName ?? "arrow.uturn.backward",
+                    layout: layout,
+                    count: isBack ? 4 : count,
+                    isEditor: false,
+                    reservesBack: !isBack && reservesBack
+                )
+                .foregroundStyle(isSelected && isEnabled ? Color.white : Color.primary)
+                .opacity(isEnabled ? 1 : 0.38)
+                .offset(x: cos(angle) * layout.contentRadius, y: sin(angle) * layout.contentRadius)
+            }
+            .allowsHitTesting(false)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(action?.title ?? String(localized: "Back to parent folder"))
+            .compositingGroup()
+            .modifier(WheelTileEntrance(index: index, count: count + (reservesBack ? 1 : 0), isVisible: model.isVisible))
     }
+}
 
-    private var centerContent: some View {
+private struct WheelCenterContent: View {
+    let model: WheelModel
+
+    var body: some View {
         VStack(spacing: 5) {
             if let hoveredAction = model.hoveredAction {
                 if !hoveredAction.symbolName.isEmpty {
@@ -71,92 +100,79 @@ struct RuntimeWheelView: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .frame(width: 68)
-            } else if !model.parents.isEmpty {
-                Image(systemName: "arrow.uturn.backward")
-                    .font(.system(size: 21, weight: .light))
-                    .frame(width: 24, height: 24)
-
-                Text("BACK")
-                    .font(.system(size: 9, weight: .medium))
-                    .tracking(1.2)
+            } else if model.actions.isEmpty {
+                Text("No actions")
+                    .font(.system(size: 9, weight: .semibold))
+                    .multilineTextAlignment(.center)
+                    .frame(width: 68)
             }
         }
         .frame(width: 88, height: 88)
-        .foregroundStyle(
-            model.dwellTarget == WheelModel.backTarget ? Color.white : Color.primary
-        )
+        .foregroundStyle(Color.primary)
         .opacity(model.hoveredAction?.isEnabled == false ? 0.45 : 1)
         .contentTransition(.opacity)
         .allowsHitTesting(false)
     }
-
-    private func actionContent(_ action: WheelAction, index: Int) -> some View {
-        let angle = WheelLayout.runtime.angle(index: index, count: model.actions.count)
-        let isSelected = model.hoveredID == action.id
-
-        return WheelSegment(angle: angle, count: model.actions.count)
-            .fill(.clear)
-            .overlay {
-                if action.isFolder && action.isEnabled {
-                    DwellProgress(
-                        model: model,
-                        target: action.id.uuidString,
-                        shape: WheelProgressArc(angle: angle, count: model.actions.count)
-                    )
-                }
-            }
-            .overlay {
-                WheelTileLabel(
-                    title: action.title,
-                    symbolName: action.symbolName,
-                    layout: .runtime,
-                    count: model.actions.count,
-                    isEditor: false
-                )
-                .foregroundStyle(isSelected && action.isEnabled ? Color.white : Color.primary)
-                .opacity(action.isEnabled ? 1 : 0.38)
-                .offset(
-                    x: cos(angle) * WheelLayout.runtime.contentRadius,
-                    y: sin(angle) * WheelLayout.runtime.contentRadius
-                )
-            }
-            .allowsHitTesting(false)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(action.title)
-    }
 }
 
-/// The glass shader depends only on the wheel layout, never on hover state.
-private struct WheelGlassSurfaces: View, Equatable {
-    let actionIDs: [WheelAction.ID]
+/// Each tile owns its glass container so transforms include the material itself.
+/// The material depends only on geometry, never on hover state.
+private struct WheelGlassSurface: View, Equatable {
+    enum Surface: Equatable {
+        case segment(angle: Double, span: Double)
+        case center
+    }
+
+    let surface: Surface
 
     var body: some View {
         if #available(macOS 26, *) {
             GlassEffectContainer(spacing: 0) {
-                surfaces
+                glass
             }
         } else {
-            surfaces
+            glass
         }
     }
 
-    private var surfaces: some View {
-        ZStack {
-            ForEach(Array(actionIDs.enumerated()), id: \.element) { index, _ in
-                let shape = WheelSegment(
-                    angle: WheelLayout.runtime.angle(index: index, count: actionIDs.count),
-                    count: actionIDs.count
-                )
+    private var glass: some View {
+        Group {
+            switch surface {
+            case let .segment(angle, span):
+                let shape = WheelSegment(angle: angle, span: span)
+                shape.fill(.clear).modifier(WheelGlass(shape: shape))
+            case .center:
+                let shape = WheelCenter()
                 shape.fill(.clear).modifier(WheelGlass(shape: shape))
             }
-
-            let center = WheelCenter()
-            center.fill(.clear).modifier(WheelGlass(shape: center))
         }
-        .id(actionIDs)
         .transaction { transaction in
             transaction.animation = nil
         }
+    }
+}
+
+/// Keep glass, highlight, icon and label moving together around the wheel.
+private struct WheelTileEntrance: ViewModifier {
+    let index: Int
+    let count: Int
+    let isVisible: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isVisible || reduceMotion ? 1 : 0.86)
+            .rotationEffect(.degrees(isVisible || reduceMotion ? 0 : -6))
+            .opacity(isVisible ? 1 : 0)
+            .animation(animation, value: isVisible)
+    }
+
+    private var animation: Animation {
+        if reduceMotion { return .easeOut(duration: 0.12) }
+        if !isVisible { return .easeOut(duration: 0.16) }
+        // Keep the entire entrance brief, including wheels with many actions.
+        let stagger = min(0.03, 0.15 / Double(max(1, count - 1)))
+        return .spring(duration: 0.28, bounce: 0.15).delay(Double(index) * stagger)
     }
 }
 
@@ -170,6 +186,7 @@ private struct WheelGlass<S: Shape>: ViewModifier {
             content.background(Color(nsColor: .windowBackgroundColor), in: shape)
         } else if #available(macOS 26, *) {
             content.glassEffect(.regular, in: shape)
+                .glassEffectTransition(.identity)
         } else {
             content.background(.ultraThinMaterial, in: shape)
         }

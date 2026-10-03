@@ -13,22 +13,28 @@ final class WheelModel {
     var dwellTarget: String?
     var dwellStarted: Date?
     var isVisible = false
+    private(set) var activeWheel: WheelKind = .primary
+
+    private struct NavigationState {
+        let actions: [WheelAction]
+        let parents: [[WheelAction]]
+    }
+
+    @ObservationIgnored private var navigation: [WheelKind: NavigationState] = [:]
+
+    var canNavigateBack: Bool { !parents.isEmpty }
 
     var hoveredAction: WheelAction? {
         actions.first { $0.id == hoveredID }
     }
 
     func updateHover(at point: CGPoint, now: Date = .now) {
-        let index = WheelLayout.runtime.index(at: point, count: actions.count)
+        let index = WheelLayout.runtime.index(at: point, count: actions.count, reservesBack: canNavigateBack)
         let nextHoveredID = index.map { actions[$0].id }
         if hoveredID != nextHoveredID { hoveredID = nextHoveredID }
 
-        let isInsideCenter = hypot(
-            point.x - WheelLayout.runtime.size / 2,
-            point.y - WheelLayout.runtime.size / 2
-        ) <= WheelLayout.runtime.centerRadius
         let nextTarget: String?
-        if isInsideCenter, !parents.isEmpty {
+        if canNavigateBack, WheelLayout.runtime.isBack(at: point) {
             nextTarget = Self.backTarget
         } else if let hoveredAction, hoveredAction.isFolder, hoveredAction.isEnabled {
             nextTarget = hoveredAction.id.uuidString
@@ -62,9 +68,24 @@ final class WheelModel {
         }
     }
 
-    func reset(actions: [WheelAction]) {
-        self.actions = actions
+    func reset(actions: [WheelAction], secondaryActions: [WheelAction] = [], wheel: WheelKind = .primary) {
+        navigation = [
+            .primary: NavigationState(actions: actions, parents: []),
+            .secondary: NavigationState(actions: secondaryActions, parents: [])
+        ]
+        activeWheel = wheel
+        self.actions = navigation[wheel]?.actions ?? []
         parents = []
+        clearHover()
+    }
+
+    func switchWheel(to wheel: WheelKind) {
+        guard wheel != activeWheel else { return }
+        navigation[activeWheel] = NavigationState(actions: actions, parents: parents)
+        let next = navigation[wheel]
+        activeWheel = wheel
+        actions = next?.actions ?? []
+        parents = next?.parents ?? []
         clearHover()
     }
 
