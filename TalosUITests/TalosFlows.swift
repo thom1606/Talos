@@ -464,7 +464,8 @@ final class TalosFlows: XCTestCase {
         for (format, offset) in [("png", CGVector(dx: -100, dy: 25)),
                                  ("svg", CGVector(dx: -85, dy: -53))] {
             let output = directory.appendingPathComponent("sample-converted.\(format)")
-            dropOnWheel(file: input, offset: offset) { waitForFile(output) }
+            // Allow the root-folder dwell to finish even when CI delivers drag updates late.
+            dropOnWheel(file: input, offset: offset, holdDuration: 2.2) { waitForFile(output) }
             XCTAssertFalse(app.windows["Convert"].exists)
             if format == "png" {
                 let image = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: output)))
@@ -756,7 +757,8 @@ final class TalosFlows: XCTestCase {
     }
 
     private func dropOnWheel(file: URL, offset: CGVector, includingFile: String? = nil,
-                             modifiers: XCUIElement.KeyModifierFlags = .shift, verifyDrop: () -> Void) {
+                             modifiers: XCUIElement.KeyModifierFlags = .shift,
+                             holdDuration: TimeInterval = 1.2, verifyDrop: () -> Void) {
         let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
         finder.activate()
         finder.typeKey("g", modifierFlags: [.command, .shift])
@@ -773,7 +775,7 @@ final class TalosFlows: XCTestCase {
         if let includingFile { finder.windows.firstMatch.images[includingFile].firstMatch.click() }
         let point = source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         XCUIElement.perform(withKeyModifiers: modifiers) {
-            point.click(forDuration: 0.2, thenDragTo: point.withOffset(offset), withVelocity: XCUIGestureVelocity(rawValue: 40), thenHoldForDuration: 1.2)
+            point.click(forDuration: 0.2, thenDragTo: point.withOffset(offset), withVelocity: XCUIGestureVelocity(rawValue: 40), thenHoldForDuration: holdDuration)
             // Keep the activation key down until AppKit has delivered the mouse-up/drop callbacks.
             verifyDrop()
         }
