@@ -12,12 +12,14 @@ const handles: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 type CropImage = { name: string; dataURL: string; width: number; height: number; video: boolean };
 type Drag = { start: Rect; clientX: number; clientY: number; scale: number; handle: Handle | 'move' };
 
-export default function CropWindow({ mode = 'crop' }: { mode?: 'crop' | 'redact' }) {
+export default function CropWindow({ mode = 'crop', input, onBusyChange }: {
+  mode?: 'crop' | 'redact'; input?: TalosFile; onBusyChange?(busy: boolean): void;
+}) {
   const redacting = mode === 'redact';
   const [redactions, setRedactions] = useState<Redaction[]>([]);
   const { files } = useTalos();
-  const images = useMemo(() => files.filter(file => (redacting ? ['image'] : ['image', 'video']).includes(mediaKind(file.name) ?? '')), [files, redacting]);
-  const [selectedPath, setSelectedPath] = useState(images[0]?.path ?? '');
+  const images = useMemo(() => input ? [input] : files.filter(file => (redacting ? ['image'] : ['image', 'video']).includes(mediaKind(file.name) ?? '')), [files, redacting, input]);
+  const [selectedPath, setSelectedPath] = useState(input?.path ?? images[0]?.path ?? '');
   const [image, setImage] = useState<CropImage | null>(null);
   const [crop, setCrop] = useState<Rect>({ x: 0, y: 0, width: 1, height: 1 });
   const [ratio, setRatio] = useState<number | null>(null);
@@ -35,6 +37,8 @@ export default function CropWindow({ mode = 'crop' }: { mode?: 'crop' | 'redact'
   const drag = useRef<Drag | null>(null);
   const video = useRef<HTMLVideoElement>(null);
   const primingVideo = useRef(false);
+
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
 
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => setStageSize({ width: entry.contentRect.width, height: entry.contentRect.height }));

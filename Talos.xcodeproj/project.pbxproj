@@ -212,7 +212,7 @@
 			outputPaths = ();
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "# The UI runner is sandboxed. Create input files in build products so Talos can\n# save beside them without a Save panel, while the runner only needs read access.\nset -euo pipefail\nroot=\"${BUILT_PRODUCTS_DIR:?}/TalosUITestFixtures\"\nrm -rf \"$root\"\nfor test in crop convert compress video archive; do\n  directory=\"$root/$test\"\n  mkdir -p \"$directory\"\n  cp \"${SRCROOT:?}/TalosUITests/Fixtures/sample.png\" \"$directory/sample.png\"\ndone\ncp \"$SRCROOT/TalosUITests/Fixtures/sample.mp4\" \"$root/video/sample.mp4\"\nprintf 'A second selected file' > \"$root/archive/notes.txt\"";
+			shellScript = "# The UI runner is sandboxed. Create input files in build products so Talos can\n# save beside them without a Save panel, while the runner only needs read access.\nset -euo pipefail\nroot=\"${BUILT_PRODUCTS_DIR:?}/TalosUITestFixtures\"\nrm -rf \"$root\"\nfor test in crop convert compress video archive redactAudio redactImage convertAudio convertWebP convertArchives; do\n  directory=\"$root/$test\"\n  mkdir -p \"$directory\"\n  cp \"${SRCROOT:?}/TalosUITests/Fixtures/sample.png\" \"$directory/sample.png\"\ndone\npython3 \"$SRCROOT/TalosUITests/Fixtures/generate-audio.py\" \"$root/redactAudio/sample.wav\"\ncp \"$root/redactAudio/sample.wav\" \"$root/convertAudio/sample.wav\"\npython3 \"$SRCROOT/TalosUITests/Fixtures/generate-archive.py\" \"$root/convertArchives/sample.zip\"\ncp \"$SRCROOT/TalosUITests/Fixtures/sample.mp4\" \"$root/video/sample.mp4\"\nprintf 'A second selected file' > \"$root/archive/notes.txt\"";
 		};
 		E50000000000000000000001 /* Embed JavaScript Runtime */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -408,7 +408,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thom1606.Talos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -445,7 +445,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.6;
+				MARKETING_VERSION = 1.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.thom1606.Talos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

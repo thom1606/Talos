@@ -113,6 +113,25 @@ test('window requests get their own live scope and closing a window stops its su
   assert.equal(f.messages.some(m => m.method === 'windowReply' && m.requestID === 'slow-one'), false);
 });
 
+test('window responses larger than a megabyte arrive intact and leave the window usable', async t => {
+  const f = await fixture(t, `export const activate=defineActions({
+    open: () => talos.openWindow({title:'Large response',content:'Hello',
+      onRequest: method => method==='large' ? {body:'waveform音'.repeat(150000),end:'complete'} : {ok:true},
+    }),
+  });`);
+  f.activate('open', 'open');
+  const window = await f.message(m => m.method === 'openWindow');
+  await f.message(m => m.method === 'activationComplete' && m.requestID === 'open');
+  f.send({type:'windowRequest',requestID:'large',windowID:window.parameters.windowID,method:'large',payloadJSON:'{}'});
+  const response = await f.message(m => m.method === 'windowReply' && m.requestID === 'large');
+  assert.equal(response.parameters.error, undefined);
+  assert.ok(Buffer.byteLength(response.parameters.resultJSON) > 1024 * 1024);
+  assert.deepEqual(JSON.parse(response.parameters.resultJSON), {body:'waveform音'.repeat(150000),end:'complete'});
+  f.send({type:'windowRequest',requestID:'next',windowID:window.parameters.windowID,method:'next',payloadJSON:'{}'});
+  const next = await f.message(m => m.method === 'windowReply' && m.requestID === 'next');
+  assert.deepEqual(JSON.parse(next.parameters.resultJSON), {ok:true});
+});
+
 test('host EOF releases a waiting model stream instead of retaining its activation', async t => {
   const f = await fixture(t, `export async function activate() {
     for await (const snapshot of talos.appleIntelligence.stream('hello')) console.log(snapshot);

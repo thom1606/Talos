@@ -3,12 +3,33 @@ import { deflate, inflate } from 'node:zlib';
 import { promisify } from 'node:util';
 
 const zip = promisify(deflate), unzip = promisify(inflate);
+const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+export async function encodePNG(width: number, height: number, rgba: Buffer): Promise<Buffer> {
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0 || rgba.length !== width * height * 4) {
+    throw new Error('Invalid RGBA image');
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width); header.writeUInt32BE(height, 4);
+  header[8] = 8; header[9] = 6; // 8-bit RGBA, unassociated alpha.
+  const stride = width * 4, scanlines = Buffer.alloc((stride + 1) * height);
+  for (let row = 0; row < height; row++) rgba.copy(scanlines, row * (stride + 1) + 1, row * stride, (row + 1) * stride);
+  return Buffer.concat([signature, chunk('IHDR', header), chunk('sRGB', Buffer.from([0])),
+    chunk('IDAT', await zip(scanlines)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+function chunk(type: string, data: Buffer): Buffer {
+  const bytes = Buffer.alloc(data.length + 12);
+  bytes.writeUInt32BE(data.length); bytes.write(type, 4); data.copy(bytes, 8);
+  bytes.writeUInt32BE(crc32(bytes.subarray(4, -4)), bytes.length - 4);
+  return bytes;
+}
 
 // Re-deflate only IDAT scanlines; pixels, filters, bit depth and ancillary chunks stay intact.
 export async function optimizePNG(path: string): Promise<Buffer> {
   if ((await stat(path)).size > 128 * 1024 * 1024) throw new Error('PNG is too large to optimize safely');
   const bytes = await readFile(path);
-  if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error('Invalid PNG');
+  if (!bytes.subarray(0, 8).equals(signature)) throw new Error('Invalid PNG');
   const chunks: { type: string; data: Buffer }[] = [], image: Buffer[] = [];
   for (let offset = 8; offset < bytes.length;) {
     if (offset + 12 > bytes.length) throw new Error('Truncated PNG');
@@ -26,8 +47,7 @@ export async function optimizePNG(path: string): Promise<Buffer> {
   const scanlines = await unzip(original, { maxOutputLength: 512 * 1024 * 1024 });
   const optimized = await zip(scanlines, { level: 9 });
   if (optimized.length >= original.length) return bytes;
-  const idat = Buffer.alloc(optimized.length + 12); idat.writeUInt32BE(optimized.length); idat.write('IDAT', 4); optimized.copy(idat, 8);
-  idat.writeUInt32BE(crc32(idat.subarray(4, -4)), idat.length - 4);
+  const idat = chunk('IDAT', optimized);
   let written = false;
   return Buffer.concat([bytes.subarray(0, 8), ...chunks.flatMap(chunk => {
     if (chunk.type !== 'IDAT') return [chunk.data];

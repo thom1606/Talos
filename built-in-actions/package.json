@@ -6,7 +6,10 @@
   "scripts": {
     "build": "talos build",
     "typecheck": "tsc --noEmit",
-    "package": "bash scripts/build-tools.sh && bash scripts/build-pdf-tool.sh && bash scripts/build-image-tool.sh && talos build && node scripts/package.mjs"
+    "package": "bash scripts/build-tools.sh && bash scripts/build-pdf-tool.sh && bash scripts/build-image-tool.sh && bash scripts/build-archive-tool.sh && talos build && node scripts/package.mjs",
+    "test:audio": "node --test tests/*audio*.test.mjs",
+    "test:images": "node --test tests/convert-images.test.mjs",
+    "test:archives": "node --test tests/convert-archives.test.mjs"
   },
   "devDependencies": {
     "@thom1606/talos-sdk": "3.5.0",
@@ -43,6 +46,7 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
@@ -56,16 +60,18 @@
       "name": "redact",
       "displayName": "Redact",
       "icon": "eye.slash",
-      "description": "Hide parts of an image with black blocks.",
+      "description": "Hide parts of an image or replace parts of audio with a bleep.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
-        "com.microsoft.bmp"
+        "com.microsoft.bmp",
+        "public.audio"
       ]
     },
     {
@@ -102,10 +108,11 @@
       "name": "convert",
       "displayName": "Convert",
       "icon": "arrow.trianglehead.2.clockwise.rotate.90",
-      "description": "Convert a selection of images, PDFs, videos, or audio files.",
+      "description": "Convert selected images, PDFs, videos, audio files, or archives.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
@@ -114,60 +121,212 @@
         "com.microsoft.bmp",
         "public.movie",
         "public.audio",
-        "com.adobe.pdf"
+        "com.adobe.pdf",
+        "public.zip-archive",
+        "public.tar-archive",
+        "org.gnu.gnu-zip-tar-archive",
+        ".tar.gz",
+        ".tar.gzip"
       ],
       "subcommands": [
         "convert-png",
+        "convert-webp",
         "convert-jpg",
-        "convert-docx",
         "convert-tiff",
         "convert-bmp",
+        "convert-pdf-png",
+        "convert-pdf-jpg",
+        "convert-docx",
         "convert-mp4",
         "convert-mov",
+        "convert-audio-png",
+        "convert-svg",
         "convert-m4a",
         "convert-wav",
-        "convert-flac"
+        "convert-flac",
+        "convert-zip",
+        "convert-tar",
+        "convert-gzip"
+      ],
+      "settings": [
+        {
+          "name": "use-image-png",
+          "displayName": "PNG",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-image-webp",
+          "displayName": "WebP",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-image-jpg",
+          "displayName": "JPG",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-image-tiff",
+          "displayName": "TIFF",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-image-bmp",
+          "displayName": "BMP",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-pdf-png",
+          "displayName": "PNG",
+          "section": "PDFs",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-pdf-jpg",
+          "displayName": "JPG",
+          "section": "PDFs",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-pdf-docx",
+          "displayName": "DOCX",
+          "section": "PDFs",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-video-mp4",
+          "displayName": "MP4",
+          "section": "Videos",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-video-mov",
+          "displayName": "MOV",
+          "section": "Videos",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-png",
+          "displayName": "PNG",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-svg",
+          "displayName": "SVG",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-m4a",
+          "displayName": "M4A",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-wav",
+          "displayName": "WAV",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-flac",
+          "displayName": "FLAC",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-archive-zip",
+          "displayName": "ZIP",
+          "section": "Archives",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-archive-tar",
+          "displayName": "TAR",
+          "section": "Archives",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-archive-gzip",
+          "displayName": "GZIP",
+          "section": "Archives",
+          "type": "boolean",
+          "defaultValue": true
+        }
       ]
     },
     {
       "name": "convert-png",
       "displayName": "PNG",
-      "description": "Convert selected files to PNG.",
+      "description": "Convert selected images to PNG.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
-        "com.microsoft.bmp",
-        "com.adobe.pdf"
-      ]
+        "com.microsoft.bmp"
+      ],
+      "when": "use-image-png"
+    },
+    {
+      "name": "convert-webp",
+      "displayName": "WebP",
+      "description": "Convert selected images to WebP, preserving transparency.",
+      "supportedFileTypes": [
+        "public.png",
+        "public.jpeg",
+        "public.jpeg-xl",
+        "public.heic",
+        "public.heif",
+        "public.tiff",
+        "org.webmproject.webp",
+        "com.compuserve.gif",
+        "com.microsoft.bmp"
+      ],
+      "when": "use-image-webp"
     },
     {
       "name": "convert-jpg",
       "displayName": "JPG",
-      "description": "Convert selected files to JPG.",
+      "description": "Convert selected images to JPG.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
-        "com.microsoft.bmp",
-        "com.adobe.pdf"
-      ]
-    },
-    {
-      "name": "convert-docx",
-      "displayName": "DOCX",
-      "description": "Convert selected PDF files to DOCX.",
-      "supportedFileTypes": [
-        "com.adobe.pdf"
-      ]
+        "com.microsoft.bmp"
+      ],
+      "when": "use-image-jpg"
     },
     {
       "name": "convert-tiff",
@@ -176,13 +335,15 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
         "com.microsoft.bmp"
-      ]
+      ],
+      "when": "use-image-tiff"
     },
     {
       "name": "convert-bmp",
@@ -191,13 +352,42 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
         "com.microsoft.bmp"
-      ]
+      ],
+      "when": "use-image-bmp"
+    },
+    {
+      "name": "convert-pdf-png",
+      "displayName": "PNG",
+      "description": "Convert each page of the selected PDF files to PNG.",
+      "supportedFileTypes": [
+        "com.adobe.pdf"
+      ],
+      "when": "use-pdf-png"
+    },
+    {
+      "name": "convert-pdf-jpg",
+      "displayName": "JPG",
+      "description": "Convert each page of the selected PDF files to JPG.",
+      "supportedFileTypes": [
+        "com.adobe.pdf"
+      ],
+      "when": "use-pdf-jpg"
+    },
+    {
+      "name": "convert-docx",
+      "displayName": "DOCX",
+      "description": "Convert selected PDF files to DOCX.",
+      "supportedFileTypes": [
+        "com.adobe.pdf"
+      ],
+      "when": "use-pdf-docx"
     },
     {
       "name": "convert-mp4",
@@ -205,7 +395,8 @@
       "description": "Convert selected files to MP4.",
       "supportedFileTypes": [
         "public.movie"
-      ]
+      ],
+      "when": "use-video-mp4"
     },
     {
       "name": "convert-mov",
@@ -213,7 +404,26 @@
       "description": "Convert selected files to MOV.",
       "supportedFileTypes": [
         "public.movie"
-      ]
+      ],
+      "when": "use-video-mov"
+    },
+    {
+      "name": "convert-audio-png",
+      "displayName": "PNG",
+      "description": "Export selected audio files as Talos-colored PNG waveforms.",
+      "supportedFileTypes": [
+        "public.audio"
+      ],
+      "when": "use-audio-png"
+    },
+    {
+      "name": "convert-svg",
+      "displayName": "SVG",
+      "description": "Export selected audio files as Talos-colored SVG waveforms.",
+      "supportedFileTypes": [
+        "public.audio"
+      ],
+      "when": "use-audio-svg"
     },
     {
       "name": "convert-m4a",
@@ -221,7 +431,8 @@
       "description": "Convert selected files to M4A.",
       "supportedFileTypes": [
         "public.audio"
-      ]
+      ],
+      "when": "use-audio-m4a"
     },
     {
       "name": "convert-wav",
@@ -229,7 +440,8 @@
       "description": "Convert selected files to WAV.",
       "supportedFileTypes": [
         "public.audio"
-      ]
+      ],
+      "when": "use-audio-wav"
     },
     {
       "name": "convert-flac",
@@ -237,7 +449,47 @@
       "description": "Convert selected files to FLAC.",
       "supportedFileTypes": [
         "public.audio"
-      ]
+      ],
+      "when": "use-audio-flac"
+    },
+    {
+      "name": "convert-zip",
+      "displayName": "ZIP",
+      "description": "Convert selected archives to ZIP.",
+      "supportedFileTypes": [
+        "public.zip-archive",
+        "public.tar-archive",
+        "org.gnu.gnu-zip-tar-archive",
+        ".tar.gz",
+        ".tar.gzip"
+      ],
+      "when": "use-archive-zip"
+    },
+    {
+      "name": "convert-tar",
+      "displayName": "TAR",
+      "description": "Convert selected archives to TAR.",
+      "supportedFileTypes": [
+        "public.zip-archive",
+        "public.tar-archive",
+        "org.gnu.gnu-zip-tar-archive",
+        ".tar.gz",
+        ".tar.gzip"
+      ],
+      "when": "use-archive-tar"
+    },
+    {
+      "name": "convert-gzip",
+      "displayName": "GZIP",
+      "description": "Convert selected archives to gzip-compressed TAR (.tgz).",
+      "supportedFileTypes": [
+        "public.zip-archive",
+        "public.tar-archive",
+        "org.gnu.gnu-zip-tar-archive",
+        ".tar.gz",
+        ".tar.gzip"
+      ],
+      "when": "use-archive-gzip"
     }
   ]
 }

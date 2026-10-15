@@ -69,7 +69,12 @@ final class WheelActionLibrary {
 
     private func shortcuts(for command: ExtensionCommand, in catalog: Catalog,
                            item: WheelItem? = nil, title: String? = nil) -> [ShortcutTile] {
-        let options = catalog.index.children(of: command).filter { $0.subcommands?.isEmpty != false }
+        let children = catalog.index.children(of: command).filter {
+            $0.isVisible(parentSettings: command.settings ?? [], config: item?.config ?? [:])
+        }
+        // A parent whose subcommands are all hidden has nothing left to run.
+        if command.subcommands != nil && children.isEmpty { return [] }
+        let options = children.filter { $0.subcommands?.isEmpty != false }
         let baseID = item?.id.uuidString ?? "\(catalog.loaded.id).\(command.name)"
         let title = title ?? command.displayName
         return (options.isEmpty ? [command] : options).map { child in
@@ -177,7 +182,9 @@ final class WheelActionLibrary {
                                  config: [String: TileConfigValue] = [:]) -> WheelAction? {
         let matchingFiles = command.matchingFiles(in: files)
         if command.subcommands != nil {
-            let subcommands = catalog.index.children(of: command)
+            let subcommands = catalog.index.children(of: command).filter {
+                $0.isVisible(parentSettings: command.settings ?? [], config: config)
+            }
             let groups = Dictionary(grouping: matchingFiles, by: { $0.category })
             if groups.count > 1 {
                 let children = DraggedFile.Category.allCases.compactMap { category -> WheelAction? in

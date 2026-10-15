@@ -66,6 +66,31 @@ nonisolated struct ExtensionManifest: Codable, Sendable, Equatable, Identifiable
             }
         }
         for command in commands { try visit(command, ancestors: []) }
+        for command in commands { try validateWhen(of: command) }
+    }
+
+    /// A typo in a `when` clause would silently hide a subcommand, so check it against every parent.
+    private func validateWhen(of command: ExtensionCommand) throws {
+        guard let when = command.when else { return }
+        let clause = try ExtensionWhenClause(when)
+        for parent in commands where parent.subcommands?.contains(command.name) == true {
+            let settings = Dictionary((parent.settings ?? []).map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
+            if let unknown = clause.settings.subtracting(settings.keys).sorted().first {
+                throw SDKRuntimeError.invalidManifest(
+                    "The when clause of \(command.name) uses \(unknown), which \(parent.name) does not define")
+            }
+            // Passwords stay in Keychain and are never read just to draw the wheel.
+            if let password = clause.settings.sorted().first(where: { settings[$0]?.type == .password }) {
+                throw SDKRuntimeError.invalidManifest(
+                    "The when clause of \(command.name) cannot use the password setting \(password)")
+            }
+            for comparison in clause.comparisons {
+                if let setting = settings[comparison.setting], !setting.accepts(comparison.value) {
+                    throw SDKRuntimeError.invalidManifest(
+                        "The when clause of \(command.name) compares \(setting.name) with an invalid value: \(comparison.value)")
+                }
+            }
+        }
     }
 
     private static func isBundleID(_ value: String) -> Bool {
@@ -98,6 +123,8 @@ nonisolated struct ExtensionCommand: Codable, Sendable, Equatable, Identifiable 
     let supportedFileTypes: [String]
     let settings: [ExtensionSetting]?
     var subcommands: [String]? = nil
+    /// Hides this subcommand unless the clause holds for its parent tile's settings.
+    var when: String? = nil
 
     var id: String { name }
 }
@@ -114,6 +141,16 @@ nonisolated struct ExtensionSetting: Codable, Sendable, Equatable, Identifiable 
     let options: [String]?
 
     var id: String { name }
+
+    /// Whether a `when` comparison can ever match a value of this setting.
+    func accepts(_ value: String) -> Bool {
+        switch type {
+        case .select: options?.contains(value) == true
+        case .boolean: value == "true" || value == "false"
+        case .number: Double(value)?.isFinite == true
+        case .text, .password: true
+        }
+    }
 
     enum ValueType: String, Codable, Sendable {
         case text

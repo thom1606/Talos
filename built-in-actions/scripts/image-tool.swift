@@ -17,10 +17,11 @@ struct Redaction: Decodable {
 
 let arguments = CommandLine.arguments
 let redacting = arguments.count == 6 && arguments[3] == "redact"
-guard redacting || arguments.count == 8 else { fail("Invalid image request") }
+let normalizing = arguments.count == 4 && arguments[3] == "normalize"
+guard normalizing || redacting || arguments.count == 8 else { fail("Invalid image request") }
 let input = URL(fileURLWithPath: arguments[1])
 let output = URL(fileURLWithPath: arguments[2])
-let format = arguments[redacting ? 5 : 7]
+let format = normalizing ? "png" : arguments[redacting ? 5 : 7]
 guard let type = format == "png" ? UTType.png : format == "jpg" ? UTType.jpeg : nil else {
     fail("Unsupported output format")
 }
@@ -44,7 +45,21 @@ guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDi
 var result: CGImage
 let width: Int
 let height: Int
-if redacting {
+if normalizing {
+    width = image.width
+    height = image.height
+    // WebP assumes sRGB unless it carries an ICC profile. Bake orientation and convert
+    // wide-gamut/CMYK inputs to sRGB before the extension's WebP encoder sees the pixels.
+    guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+          let context = CGContext(data: nil, width: width, height: height,
+                                  bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+        fail("Cannot normalize image")
+    }
+    context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+    guard let normalized = context.makeImage() else { fail("Cannot normalize image") }
+    result = normalized
+} else if redacting {
     guard let rectangles = try? JSONDecoder().decode([Redaction].self, from: Data(arguments[4].utf8)),
           !rectangles.isEmpty,
           rectangles.allSatisfy({ $0.x >= 0 && $0.y >= 0 && $0.width > 0 && $0.height > 0 &&

@@ -37,6 +37,7 @@ jobs:
       - name: Prepare extension build tools
         run: |
           command -v cmake || brew install cmake
+          command -v pkg-config || brew install pkg-config
           command -v swiftlint || brew install swiftlint
       - uses: actions/cache@v5
         with:
@@ -49,6 +50,12 @@ jobs:
             -configuration Debug -destination 'platform=macOS' \
             -derivedDataPath build/tests -resultBundlePath build/TalosFlows.xcresult \
             -parallel-testing-enabled NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual
+      - name: Verify real archive conversions
+        run: npm run test:archives --prefix built-in-actions
+      - name: Verify real image conversions
+        run: npm run test:images --prefix built-in-actions
+      - name: Verify real audio exports and redaction samples
+        run: npm run test:audio --prefix built-in-actions
       - name: Upload UI test results
         if: always()
         uses: actions/upload-artifact@v7
@@ -74,6 +81,7 @@ jobs:
       - name: Prepare extension build tools
         run: |
           command -v cmake || brew install cmake
+          command -v pkg-config || brew install pkg-config
           command -v create-dmg || brew install create-dmg
       - uses: actions/cache@v5
         with:

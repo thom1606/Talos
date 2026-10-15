@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type { TalosContext, TalosFile } from '@thom1606/talos-sdk';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
-export async function tool(name: 'ffmpeg' | 'ffprobe' | 'jpegtran' | 'cjpeg' | 'djpeg' | 'pdf-tool' | 'image-tool'): Promise<string> {
+export async function tool(name: 'ffmpeg' | 'ffprobe' | 'jpegtran' | 'cjpeg' | 'djpeg' | 'pdf-tool' | 'image-tool' | 'archive-tool'): Promise<string> {
   const executable = join(packageRoot, 'vendor', 'bin', process.arch === 'arm64' ? 'arm64' : 'x86_64', name);
   // Extracted .talos files are not executable until the bundled binary is needed.
   await chmod(executable, 0o755);

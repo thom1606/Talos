@@ -3,6 +3,8 @@ import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { formats, mediaKind, type MediaKind } from '../media';
 import { ffmpeg, output, run, tool } from './shared';
+import { convertWaveform } from './convert-waveform';
+import { convertArchive } from './convert-archive';
 
 export async function convert(context: TalosContext, format: unknown, signal?: AbortSignal) {
   const kind = homogeneous(context.files);
@@ -10,14 +12,29 @@ export async function convert(context: TalosContext, format: unknown, signal?: A
   const results: string[] = [];
   for (const file of context.files) {
     signal?.throwIfAborted();
+    if (kind === 'archive') {
+      const path = await convertArchive(file, format, signal);
+      if (path) results.push(path);
+      continue;
+    }
     if (kind === 'pdf') {
       results.push(...await convertPDF(file, format, signal));
       continue;
     }
     const path = await output(file, '-converted', format, async path => {
       if (kind === 'image') {
-        // ImageIO via sips supports macOS image formats (including HEIC) without another host API.
-        await run('/usr/bin/sips', ['-s', 'format', format === 'jpg' ? 'jpeg' : format, file.path, '--out', path], signal);
+        if (format === 'webp') {
+          // The SDK removes this entire staging directory on success, failure or cancellation.
+          const normalized = join(dirname(path), 'input.png');
+          await run(await tool('image-tool'), [file.path, normalized, 'normalize'], signal);
+          await ffmpeg(['-i', normalized, '-map', '0:v:0', '-frames:v', '1', '-c:v', 'libwebp',
+            '-quality', '85', '-compression_level', '4', '-pix_fmt', 'bgra', '-map_metadata', '-1', path], signal);
+        } else {
+          // ImageIO supports macOS image formats (including HEIC) without another host API.
+          await run('/usr/bin/sips', ['-s', 'format', format === 'jpg' ? 'jpeg' : format, file.path, '--out', path], signal);
+        }
+      } else if (kind === 'audio' && (format === 'svg' || format === 'png')) {
+        await convertWaveform(file, format, path, signal);
       } else {
         const codecs = kind === 'video'
           ? ['-map', '0:v:0', '-map', '0:a?', '-c:v', 'h264_videotoolbox', '-allow_sw', '1', '-q:v', '70', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart']
@@ -31,7 +48,7 @@ export async function convert(context: TalosContext, format: unknown, signal?: A
 }
 export function homogeneous(files: TalosFile[]): MediaKind {
   const kind = files[0] && mediaKind(files[0].name);
-  if (!kind || !files.every(file => mediaKind(file.name) === kind)) throw new Error('Select only images, PDFs, videos, or audio files to convert.');
+  if (!kind || !files.every(file => mediaKind(file.name) === kind)) throw new Error('Select only images, PDFs, videos, audio files, or archives to convert.');
   return kind;
 }
 
