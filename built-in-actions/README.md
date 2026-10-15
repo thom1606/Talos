@@ -36,8 +36,13 @@ process and output handling in `shared.ts` and JPEG/PNG helpers beside Compress.
   FLAC is recompressed; other audio/video is remuxed without re-encoding. Outputs are kept only when smaller.
   Animated PNG and unsupported image optimizations are left unchanged. Savings are never guaranteed.
 - **Convert:** wheel submenu (no window), showing formats for a homogeneous image/PDF/video/audio/archive selection.
+  Each format has an enabled-by-default setting per file type (for example `use-image-png`), grouped by type in the
+  tile's settings; the subcommand's `when` clause hides it from the wheel and Shortcuts once turned off.
+  PNG and JPG are therefore separate subcommands for images, PDF pages and (PNG) audio waveforms.
   Images: PNG, WebP, JPEG, TIFF, BMP. WebP uses quality 85, preserves transparency,
-  applies EXIF orientation and converts pixels to sRGB before encoding. PDFs: one PNG or JPG per page, or a DOCX with editable extracted text
+  applies EXIF orientation and converts pixels to sRGB before encoding. JPEG XL (JXL) files are accepted as
+  Convert, Crop and Redact input, decoded by macOS ImageIO; JXL is not an output format because macOS cannot
+  write it and an encoder would mean bundling libjxl. PDFs: one PNG or JPG per page, or a DOCX with editable extracted text
   and page breaks. PDF pages without extractable text are included as images in the DOCX.
   Archives: ZIP, TAR and GZIP (a gzip-compressed TAR with a `.tgz` suffix). ZIP, TAR,
   TGZ and TAR.GZ inputs are streamed directly between formats without extracting their contents.

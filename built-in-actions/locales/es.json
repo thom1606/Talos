@@ -84,6 +84,18 @@
     "convert-gzip": {
       "displayName": "GZIP",
       "description": "Convierte los archivos comprimidos seleccionados a TAR comprimido con gzip (.tgz)."
+    },
+    "convert-pdf-png": {
+      "displayName": "PNG",
+      "description": "Convierte cada página de los PDF seleccionados a PNG."
+    },
+    "convert-pdf-jpg": {
+      "displayName": "JPG",
+      "description": "Convierte cada página de los PDF seleccionados a JPG."
+    },
+    "convert-audio-png": {
+      "displayName": "PNG",
+      "description": "Exporta los archivos de audio seleccionados como formas de onda PNG con el color de Talos."
     }
   },
   "crop": {

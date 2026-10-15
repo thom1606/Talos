@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -60,6 +60,23 @@ test('real WebP export preserves every alpha value, dimensions, originals and ex
   assert.ok(!(await readdir(directory)).some(name => name.startsWith('.talos-output-')));
 });
 
+test('JPEG XL input converts through ImageIO, keeping alpha and colors', async () => {
+  // A lossless 71-byte encoding of the same pattern; macOS can read JPEG XL but Talos does not write it.
+  const jxl = { name: 'pattern.jxl', path: join(directory, 'pattern.jxl') };
+  await copyFile(join(root, 'tests/fixtures/pattern.jxl'), jxl.path);
+  for (const format of ['png', 'webp']) {
+    const [path] = await convert({ files: [jxl] }, format);
+    const image = decodeImage(ffmpeg, path);
+    assert.equal(image.width, width); assert.equal(image.height, height);
+    for (let offset = 3; offset < rgba.length; offset += 4) assert.equal(image.pixels[offset], rgba[offset], `${format} alpha at pixel ${(offset - 3) / 4}`);
+    closeColor(pixel(image, 10, 10), [220, 45, 35]);
+    closeColor(pixel(image, 40, 10), [35, 110, 180]);
+  }
+  const [jpg] = await convert({ files: [jxl] }, 'jpg');
+  assert.equal(decodeImage(ffmpeg, jpg).width, width);
+  await assert.rejects(convert({ files: [jxl] }, 'jxl'));
+});
+
 test('JPEG, TIFF, BMP, GIF, HEIC and WebP inputs convert with one output per image', async () => {
   const files = [];
   for (const [extension, format] of [['jpg', 'jpeg'], ['tiff', 'tiff'], ['bmp', 'bmp'], ['gif', 'gif'], ['heic', 'heic']]) {
@@ -103,6 +120,26 @@ test('EXIF rotation is baked into pixels and wide-gamut input is converted to sR
   closeColor(pixel(decodeImage(ffmpeg, output), 10, 10), pixel(decodeImage(ffmpeg, expected), 10, 10));
 });
 
+test('every Convert format can be turned off with its own enabled-by-default setting', async () => {
+  const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+  const convertCommand = manifest.commands.find(command => command.name === 'convert');
+  const settings = new Map(convertCommand.settings.map(setting => [setting.name, setting]));
+  const used = new Set();
+  for (const name of convertCommand.subcommands) {
+    const command = manifest.commands.find(candidate => candidate.name === name);
+    const setting = settings.get(command.when);
+    assert.ok(setting, `${name} needs a when clause naming a Convert setting`);
+    assert.equal(setting.type, 'boolean'); assert.equal(setting.defaultValue, true);
+    assert.ok(!used.has(command.when), `${command.when} is shared`); used.add(command.when);
+  }
+  assert.equal(used.size, settings.size);
+  // PNG and JPG are separate per file type so each type can hide them independently.
+  for (const name of ['convert-png', 'convert-jpg']) {
+    const types = manifest.commands.find(command => command.name === name).supportedFileTypes;
+    assert.ok(!types.includes('com.adobe.pdf') && !types.includes('public.audio'));
+  }
+});
+
 test('invalid and cancelled conversion publishes nothing; WebP is exposed only for supported images', async () => {
   const corrupt = { name: 'bad.png', path: join(directory, 'bad.png') };
   await writeFile(corrupt.path, 'Not an image');
@@ -119,7 +156,12 @@ test('invalid and cancelled conversion publishes nothing; WebP is exposed only f
   assert.ok(manifest.commands.find(command => command.name === 'convert').subcommands.includes(action.name));
   assert.ok(action.supportedFileTypes.includes('public.heic'));
   assert.ok(!action.supportedFileTypes.includes('public.audio') && !action.supportedFileTypes.includes('com.adobe.pdf'));
+  assert.ok(!manifest.commands.some(command => command.name === 'convert-jxl'));
+  for (const name of ['convert', 'convert-png', 'convert-webp', 'convert-jpg', 'crop', 'redact']) {
+    assert.ok(manifest.commands.find(command => command.name === name).supportedFileTypes.includes('public.jpeg-xl'), name);
+  }
   for (const path of Object.values(manifest.talos.locales)) {
-    assert.equal(JSON.parse(await readFile(join(root, path), 'utf8')).commands['convert-webp'].displayName, 'WebP');
+    const commands = JSON.parse(await readFile(join(root, path), 'utf8')).commands;
+    assert.equal(commands['convert-webp'].displayName, 'WebP');
   }
 });

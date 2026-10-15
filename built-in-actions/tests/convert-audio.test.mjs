@@ -122,7 +122,7 @@ test('the audio submenu exposes SVG/PNG and every locale has the SVG action', as
   const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
   assert.ok(manifest.commands.find(command => command.name === 'convert').subcommands.includes('convert-svg'));
   assert.deepEqual(manifest.commands.find(command => command.name === 'convert-svg').supportedFileTypes, ['public.audio']);
-  assert.ok(manifest.commands.find(command => command.name === 'convert-png').supportedFileTypes.includes('public.audio'));
+  assert.deepEqual(manifest.commands.find(command => command.name === 'convert-audio-png').supportedFileTypes, ['public.audio']);
   for (const path of Object.values(manifest.talos.locales)) {
     const locale = JSON.parse(await readFile(join(root, path), 'utf8'));
     assert.equal(locale.commands['convert-svg'].displayName, 'SVG');

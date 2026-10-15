@@ -46,6 +46,7 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
@@ -63,6 +64,7 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
@@ -110,6 +112,7 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
@@ -127,46 +130,169 @@
       ],
       "subcommands": [
         "convert-png",
-        "convert-svg",
         "convert-webp",
         "convert-jpg",
-        "convert-docx",
         "convert-tiff",
         "convert-bmp",
+        "convert-pdf-png",
+        "convert-pdf-jpg",
+        "convert-docx",
         "convert-mp4",
         "convert-mov",
+        "convert-audio-png",
+        "convert-svg",
         "convert-m4a",
         "convert-wav",
         "convert-flac",
         "convert-zip",
         "convert-tar",
         "convert-gzip"
+      ],
+      "settings": [
+        {
+          "name": "use-image-png",
+          "displayName": "PNG",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-image-webp",
+          "displayName": "WebP",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-image-jpg",
+          "displayName": "JPG",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-image-tiff",
+          "displayName": "TIFF",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-image-bmp",
+          "displayName": "BMP",
+          "section": "Images",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-pdf-png",
+          "displayName": "PNG",
+          "section": "PDFs",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-pdf-jpg",
+          "displayName": "JPG",
+          "section": "PDFs",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-pdf-docx",
+          "displayName": "DOCX",
+          "section": "PDFs",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-video-mp4",
+          "displayName": "MP4",
+          "section": "Videos",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-video-mov",
+          "displayName": "MOV",
+          "section": "Videos",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-png",
+          "displayName": "PNG",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-svg",
+          "displayName": "SVG",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-m4a",
+          "displayName": "M4A",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-wav",
+          "displayName": "WAV",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-audio-flac",
+          "displayName": "FLAC",
+          "section": "Audio",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-archive-zip",
+          "displayName": "ZIP",
+          "section": "Archives",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-archive-tar",
+          "displayName": "TAR",
+          "section": "Archives",
+          "type": "boolean",
+          "defaultValue": true
+        },
+        {
+          "name": "use-archive-gzip",
+          "displayName": "GZIP",
+          "section": "Archives",
+          "type": "boolean",
+          "defaultValue": true
+        }
       ]
     },
     {
       "name": "convert-png",
       "displayName": "PNG",
-      "description": "Convert selected files to PNG.",
+      "description": "Convert selected images to PNG.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
-        "com.microsoft.bmp",
-        "com.adobe.pdf",
-        "public.audio"
-      ]
-    },
-    {
-      "name": "convert-svg",
-      "displayName": "SVG",
-      "description": "Export selected audio files as Talos-colored SVG waveforms.",
-      "supportedFileTypes": [
-        "public.audio"
-      ]
+        "com.microsoft.bmp"
+      ],
+      "when": "use-image-png"
     },
     {
       "name": "convert-webp",
@@ -175,37 +301,32 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
         "com.microsoft.bmp"
-      ]
+      ],
+      "when": "use-image-webp"
     },
     {
       "name": "convert-jpg",
       "displayName": "JPG",
-      "description": "Convert selected files to JPG.",
+      "description": "Convert selected images to JPG.",
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
-        "com.microsoft.bmp",
-        "com.adobe.pdf"
-      ]
-    },
-    {
-      "name": "convert-docx",
-      "displayName": "DOCX",
-      "description": "Convert selected PDF files to DOCX.",
-      "supportedFileTypes": [
-        "com.adobe.pdf"
-      ]
+        "com.microsoft.bmp"
+      ],
+      "when": "use-image-jpg"
     },
     {
       "name": "convert-tiff",
@@ -214,13 +335,15 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
         "com.microsoft.bmp"
-      ]
+      ],
+      "when": "use-image-tiff"
     },
     {
       "name": "convert-bmp",
@@ -229,13 +352,42 @@
       "supportedFileTypes": [
         "public.png",
         "public.jpeg",
+        "public.jpeg-xl",
         "public.heic",
         "public.heif",
         "public.tiff",
         "org.webmproject.webp",
         "com.compuserve.gif",
         "com.microsoft.bmp"
-      ]
+      ],
+      "when": "use-image-bmp"
+    },
+    {
+      "name": "convert-pdf-png",
+      "displayName": "PNG",
+      "description": "Convert each page of the selected PDF files to PNG.",
+      "supportedFileTypes": [
+        "com.adobe.pdf"
+      ],
+      "when": "use-pdf-png"
+    },
+    {
+      "name": "convert-pdf-jpg",
+      "displayName": "JPG",
+      "description": "Convert each page of the selected PDF files to JPG.",
+      "supportedFileTypes": [
+        "com.adobe.pdf"
+      ],
+      "when": "use-pdf-jpg"
+    },
+    {
+      "name": "convert-docx",
+      "displayName": "DOCX",
+      "description": "Convert selected PDF files to DOCX.",
+      "supportedFileTypes": [
+        "com.adobe.pdf"
+      ],
+      "when": "use-pdf-docx"
     },
     {
       "name": "convert-mp4",
@@ -243,7 +395,8 @@
       "description": "Convert selected files to MP4.",
       "supportedFileTypes": [
         "public.movie"
-      ]
+      ],
+      "when": "use-video-mp4"
     },
     {
       "name": "convert-mov",
@@ -251,7 +404,26 @@
       "description": "Convert selected files to MOV.",
       "supportedFileTypes": [
         "public.movie"
-      ]
+      ],
+      "when": "use-video-mov"
+    },
+    {
+      "name": "convert-audio-png",
+      "displayName": "PNG",
+      "description": "Export selected audio files as Talos-colored PNG waveforms.",
+      "supportedFileTypes": [
+        "public.audio"
+      ],
+      "when": "use-audio-png"
+    },
+    {
+      "name": "convert-svg",
+      "displayName": "SVG",
+      "description": "Export selected audio files as Talos-colored SVG waveforms.",
+      "supportedFileTypes": [
+        "public.audio"
+      ],
+      "when": "use-audio-svg"
     },
     {
       "name": "convert-m4a",
@@ -259,7 +431,8 @@
       "description": "Convert selected files to M4A.",
       "supportedFileTypes": [
         "public.audio"
-      ]
+      ],
+      "when": "use-audio-m4a"
     },
     {
       "name": "convert-wav",
@@ -267,7 +440,8 @@
       "description": "Convert selected files to WAV.",
       "supportedFileTypes": [
         "public.audio"
-      ]
+      ],
+      "when": "use-audio-wav"
     },
     {
       "name": "convert-flac",
@@ -275,7 +449,8 @@
       "description": "Convert selected files to FLAC.",
       "supportedFileTypes": [
         "public.audio"
-      ]
+      ],
+      "when": "use-audio-flac"
     },
     {
       "name": "convert-zip",
@@ -287,7 +462,8 @@
         "org.gnu.gnu-zip-tar-archive",
         ".tar.gz",
         ".tar.gzip"
-      ]
+      ],
+      "when": "use-archive-zip"
     },
     {
       "name": "convert-tar",
@@ -299,7 +475,8 @@
         "org.gnu.gnu-zip-tar-archive",
         ".tar.gz",
         ".tar.gzip"
-      ]
+      ],
+      "when": "use-archive-tar"
     },
     {
       "name": "convert-gzip",
@@ -311,7 +488,8 @@
         "org.gnu.gnu-zip-tar-archive",
         ".tar.gz",
         ".tar.gzip"
-      ]
+      ],
+      "when": "use-archive-gzip"
     }
   ]
 }

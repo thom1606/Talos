@@ -19,11 +19,11 @@
     },
     "convert-png": {
       "displayName": "PNG",
-      "description": "Convert selected files to PNG."
+      "description": "Convert selected images to PNG."
     },
     "convert-jpg": {
       "displayName": "JPG",
-      "description": "Convert selected files to JPG."
+      "description": "Convert selected images to JPG."
     },
     "convert-docx": {
       "displayName": "DOCX",
@@ -84,6 +84,18 @@
     "convert-gzip": {
       "displayName": "GZIP",
       "description": "Convert selected archives to gzip-compressed TAR (.tgz)."
+    },
+    "convert-pdf-png": {
+      "displayName": "PNG",
+      "description": "Convert each page of the selected PDF files to PNG."
+    },
+    "convert-pdf-jpg": {
+      "displayName": "JPG",
+      "description": "Convert each page of the selected PDF files to JPG."
+    },
+    "convert-audio-png": {
+      "displayName": "PNG",
+      "description": "Export selected audio files as Talos-colored PNG waveforms."
     }
   },
   "crop": {

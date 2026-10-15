@@ -2,7 +2,7 @@
 export type MediaKind = 'image' | 'pdf' | 'video' | 'audio' | 'archive';
 export function mediaKind(name: string): MediaKind | undefined {
   if (/\.pdf$/i.test(name)) return 'pdf';
-  if (/\.(png|jpe?g|heic|heif|tiff?|webp|gif|bmp)$/i.test(name)) return 'image';
+  if (/\.(png|jpe?g|jxl|heic|heif|tiff?|webp|gif|bmp)$/i.test(name)) return 'image';
   if (/\.(mp4|mov|m4v|mkv|webm|avi|mpeg|mpg)$/i.test(name)) return 'video';
   if (/\.(wav|aiff?|flac|alac|m4a|aac|mp3|ogg|opus)$/i.test(name)) return 'audio';
   if (/\.(zip|tar|tgz|tar\.(?:gz|gzip))$/i.test(name)) return 'archive';
